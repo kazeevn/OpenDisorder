@@ -24,6 +24,8 @@ COD entries of the same chemical system. If the framework and site-species patte
 result is `pristine` when the composition agrees within tolerance and `disordered_family`
 otherwise.
 
+A write-up of the methods, validation and benchmark findings is in [`docs/REPORT.md`](docs/REPORT.md).
+
 ## What counts as a disorder match
 
 Recent critiques of generative and high-throughput materials discovery pointed out that many

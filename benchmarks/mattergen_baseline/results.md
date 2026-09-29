@@ -15,8 +15,8 @@
 
 | opendisorder            |   match |   none |
 |:------------------------|--------:|-------:|
-| disordered_family       |       0 |      4 |
+| disordered_family       |       0 |      3 |
 | disordered_realization  |      13 |      0 |
-| none                    |       0 |     40 |
+| none                    |       0 |     43 |
 | pristine                |       1 |      0 |
-| substitutional_ordering |       0 |     10 |
+| substitutional_ordering |       0 |     12 |

@@ -4,25 +4,29 @@
 
 ## Cheetham&Seshadri2024
 
-| formula             | id         | known phase according to the paper                                                | verdict    | kind                    | COD match         |
-|:--------------------|:-----------|:----------------------------------------------------------------------------------|:-----------|:------------------------|:------------------|
-| K2SmLuB24           | 00edc694b5 | LaB6 (hexaborides) [Pm-3m] (Kiessling 1950)                                       | novel      | none                    |                   |
-| K3Nd(AsO4)2         | 98bccb878a | K3Nd(PO4)2 (phosphate analogue) [P2_1/m] (Hong & Chinn 1976 (ref 8))              | novel      | none                    |                   |
-| DyHo2Rh9            | 00e7694a54 | (Dy,Ho)Rh3 ~ CeNi3 [P6_3/mmc (CeNi3)] (Cromer&Olsen 1959; YRh2Si ordered variant) | novel      | none                    |                   |
-| TbHo2Tm9Co4         | 00e086512f | Ln3Co e.g. Ho3Co [Pnma] (Buschow 1969 (ref 12))                                   | suspicious | substitutional_ordering | 1524134 (Co Ho3)  |
-| Tb16Ho(ErIr4)3      | 0057fbfd06 | Ln5Ir3 e.g. Tb5Ir3 [P4/ncc] (Le Roy 1980 (ref 13))                                | novel      | none                    |                   |
-| Dy6Y2Ho11Lu(Cd3Ru)2 | 05e70f1374 | none named (HEA-like) [] ()                                                       | novel      | none                    |                   |
-| Dy4Tc3B8Ru          | 7c5484aa4a | B2DyRu [Pnma] (ICSD 100774)                                                       | novel      | none                    |                   |
-| Y3SnPd3Pb2          | cce1e6134a | PbPtGd [P-62m] (ICSD 230854)                                                      | novel      | none                    |                   |
-| Hf4Zr11Nb(Ir2N)4    | ebc757e2d1 | Zr4Ir2N (Ti2Ni-filled, Zr/Hf/Nb disordered) [Fd-3m] (ICSD 640826)                 | novel      | none                    |                   |
-| Tb4Er4Tc(B8Os)3     | 6bffec4d39 | B6Er2Os [Pban] (ICSD 603495)                                                      | novel      | none                    |                   |
-| Ta16AlV3Te16        | 7035244016 | FeTa4Te4 [Pbam] (ICSD 79796)                                                      | novel      | none                    |                   |
-| La2Ga4Pt3Rh         | cace2fa555 | Ce2Pt1.5Ga6.5 [I4/mmm] (ICSD 621150)                                              | novel      | none                    |                   |
-| SrTm(Cu2P)4         | f595e58e43 | CaCu4P2 [P4_2/mnm] (ICSD 62553)                                                   | novel      | none                    |                   |
-| Tb9DySi5P           | a7c8bcfdf9 | Gd5Si3 [P6_3/mcm] (ICSD 99641)                                                    | suspicious | substitutional_ordering | 1536977 (Dy5 Si3) |
-| AcTl2P2S7           | 093058048a | La2P4S14Rb4 (RbLa2(P2S6)(PS4)2) [P2_1/c] (ICSD 25121)                             | novel      | none                    |                   |
-| Nb10GaOs4           | d95b844297 | Ge3.9Nb20.4Rh5.9 (sigma phase) [P4_2/mnm] (ICSD 230694)                           | novel      | none                    |                   |
-| K3Nd(AsO4)2         | 0418958d3f | K3Nd(PO4)2 (phosphate analogue) [P2_1/m] (Hong & Chinn 1976 (ref 8))              | novel      | none                    |                   |
+| formula             | id         | known phase according to the paper                                                | verdict    | kind                    | COD match           |
+|:--------------------|:-----------|:----------------------------------------------------------------------------------|:-----------|:------------------------|:--------------------|
+| K2SmLuB24           | 00edc694b5 | LaB6 (hexaborides) [Pm-3m] (Kiessling 1950)                                       | novel      | none                    |                     |
+| K3Nd(AsO4)2         | 98bccb878a | K3Nd(PO4)2 (phosphate analogue) [P2_1/m] (Hong & Chinn 1976 (ref 8))              | novel      | none                    |                     |
+| DyHo2Rh9            | 00e7694a54 | (Dy,Ho)Rh3 ~ CeNi3 [P6_3/mmc (CeNi3)] (Cromer&Olsen 1959; YRh2Si ordered variant) | novel      | none                    |                     |
+| TbHo2Tm9Co4         | 00e086512f | Ln3Co e.g. Ho3Co [Pnma] (Buschow 1969 (ref 12))                                   | suspicious | substitutional_ordering | 1524134 (Co Ho3)    |
+| Tb16Ho(ErIr4)3      | 0057fbfd06 | Ln5Ir3 e.g. Tb5Ir3 [P4/ncc] (Le Roy 1980 (ref 13))                                | novel      | none                    |                     |
+| Dy6Y2Ho11Lu(Cd3Ru)2 | 05e70f1374 | none named (HEA-like) [] ()                                                       | novel      | none                    |                     |
+| Dy4Tc3B8Ru          | 7c5484aa4a | B2DyRu [Pnma] (ICSD 100774)                                                       | novel      | none                    |                     |
+| Y3SnPd3Pb2          | cce1e6134a | PbPtGd [P-62m] (ICSD 230854)                                                      | novel      | none                    |                     |
+| Hf4Zr11Nb(Ir2N)4    | ebc757e2d1 | Zr4Ir2N (Ti2Ni-filled, Zr/Hf/Nb disordered) [Fd-3m] (ICSD 640826)                 | novel      | none                    |                     |
+| Tb4Er4Tc(B8Os)3     | 6bffec4d39 | B6Er2Os [Pban] (ICSD 603495)                                                      | novel      | none                    |                     |
+| Ta16AlV3Te16        | 7035244016 | FeTa4Te4 [Pbam] (ICSD 79796)                                                      | novel      | none                    |                     |
+| La2Ga4Pt3Rh         | cace2fa555 | Ce2Pt1.5Ga6.5 [I4/mmm] (ICSD 621150)                                              | novel      | none                    |                     |
+| SrTm(Cu2P)4         | f595e58e43 | CaCu4P2 [P4_2/mnm] (ICSD 62553)                                                   | novel      | none                    |                     |
+| Tb9DySi5P           | a7c8bcfdf9 | Gd5Si3 [P6_3/mcm] (ICSD 99641)                                                    | suspicious | substitutional_ordering | 1536977 (Dy5 Si3)   |
+| AcTl2P2S7           | 093058048a | La2P4S14Rb4 (RbLa2(P2S6)(PS4)2) [P2_1/c] (ICSD 25121)                             | novel      | none                    |                     |
+| Nb10GaOs4           | d95b844297 | Ge3.9Nb20.4Rh5.9 (sigma phase) [P4_2/mnm] (ICSD 230694)                           | novel      | none                    |                     |
+| K3Nd(AsO4)2         | 0418958d3f | K3Nd(PO4)2 (phosphate analogue) [P2_1/m] (Hong & Chinn 1976 (ref 8))              | novel      | none                    |                     |
+| Ac(ErB8)3           | mp-3169969 | LaB6/CaB6 hexaboride [Pm-3m]                                                      | novel      | none                    |                     |
+| TbSmSeO2            | mp-3169970 | La2SeO2 type [P-3m1]                                                              | suspicious | substitutional_ordering | 2310834 (O2 Se Sm2) |
+| TbSmF30             | mp-3170019 | not credible (F2 molecules)                                                       | novel      | none                    |                     |
+| AcPO3               | mp-3170055 | La analogue (LaPO3 / AcPO4?)                                                      | novel      | none                    |                     |
 
 ## Leeman2024
 
@@ -49,7 +53,7 @@
 | KMn3O6             | mp-1016190 | K0.3MnO2 / K0.48Mn1.94O5.18 [P6_3/mmc] (ICSD 240249; Kim 1999)                          | novel      | none                    |                                            |
 | KNa2Ga3(SiO4)3     | mp-1211711 | NaGaSiO4 [P2_1/n] (ICSD 46861)                                                          | novel      | none                    |                                            |
 | KNaP6(PbO3)8       | mp-1223429 | (Na,K)Pb4(PO4)3 + Pb8O5(PO4)2 [P6_3/m] (ICSD 182501, 98702)                             | suspicious | substitutional_ordering | 1528728 (K2 O24 P6 Pb8)                    |
-| KNaTi2(PO5)2       | mp-1211611 | Na0.5(Na,K)0.5TiOPO4 (Na-doped KTP) [Pna2_1] (ICSD 59284; Norberg 2003)                 | suspicious | disordered_family       | 2103915 (K1.886 Na0.114 O10 P2 Ti2)        |
+| KNaTi2(PO5)2       | mp-1211611 | Na0.5(Na,K)0.5TiOPO4 (Na-doped KTP) [Pna2_1] (ICSD 59284; Norberg 2003)                 | suspicious | substitutional_ordering | 2006468 (K O5 P Ti)                        |
 | KPr9(Si3O13)2      | mp-1223421 | Pr9.33Si6O26-type (EVA) [] ()                                                           | novel      | none                    |                                            |
 | Mg3MnNi3O8         | mp-1222170 | Mg3MnNi3O8 / (Ni1-xMgx)6MnO8 murdochite [Fm-3m] (Taguchi 1995 (ICSD); ICSD 84517, 9866) | suspicious | substitutional_ordering | 9013975 (Mn Ni6 O8)                        |
 | Mg3NiO4            | mp-1099253 | MgNiO2 / MgO-NiO solid solution [Fm-3m] (ICSD 290603)                                   | suspicious | substitutional_ordering | 1010093 (Ni O)                             |
