@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opendisorder"
+version = "0.1.0"
+description = "Check whether a crystal structure is already known in the Crystallography Open Database, including as an ordered realization of a disordered entry."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["pymatgen>=2024.1.1", "numpy"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+opendisorder = "opendisorder.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["network: tests that query the live COD server"]
+addopts = "-m 'not network'"
