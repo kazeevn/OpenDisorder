@@ -15,6 +15,7 @@ The COD asks bulk users to be gentle: requests are serialised and spaced by
 from __future__ import annotations
 
 import io
+import tarfile
 import logging
 import time
 import zipfile
@@ -26,6 +27,8 @@ import requests
 logger = logging.getLogger(__name__)
 
 COD_URL = "https://www.crystallography.net/cod"
+#: Snapshot of all COD CIFs (tar + xz, ~17 GB; also holds a MySQL dump, which is skipped).
+COD_ARCHIVE_URL = "https://www.crystallography.net/cod/archives/cod-cifs-mysql.txz"
 USER_AGENT = "opendisorder/0.1 (+https://github.com/kazeevn/OpenDisorder)"
 MAX_ZIP_BATCH = 300
 
@@ -140,3 +143,34 @@ class CODClient:
         for name in zf.namelist():
             if name.endswith(".cif"):
                 yield Path(name).stem, zf.read(name).decode("utf-8", errors="replace")
+
+
+def iter_archive_cifs(source: str | Path = COD_ARCHIVE_URL, session: requests.Session | None = None) -> Iterator[tuple[str, str]]:
+    """Stream ``(cod_id, cif_text)`` from a COD CIF archive without storing it.
+
+    ``source`` is a URL or a local path to one of the archives in
+    https://www.crystallography.net/cod/archives/ (``.txz``, ``.tgz``) or any
+    tar archive whose members are named ``.../<cod_id>.cif``.
+    """
+    source = str(source)
+    if source.startswith(("http://", "https://")):
+        session = session or requests.Session()
+        session.headers.setdefault("User-Agent", USER_AGENT)
+        resp = session.get(source, stream=True, timeout=600)
+        resp.raise_for_status()
+        resp.raw.decode_content = True
+        fileobj, close = resp.raw, resp.close
+    else:
+        fileobj = open(source, "rb")
+        close = fileobj.close
+    try:
+        with tarfile.open(fileobj=fileobj, mode="r|*") as tf:
+            for member in tf:
+                if not member.isfile() or not member.name.endswith(".cif"):
+                    continue
+                fh = tf.extractfile(member)
+                if fh is None:
+                    continue
+                yield Path(member.name).stem, fh.read().decode("utf-8", errors="replace")
+    finally:
+        close()

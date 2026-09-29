@@ -13,7 +13,7 @@ from pathlib import Path
 from pymatgen.core import Structure
 
 from .checker import CheckOptions, NoveltyChecker
-from .cod import CODClient
+from .cod import COD_ARCHIVE_URL, CODClient
 from .index import CODIndex
 
 DEFAULT_DB = Path(os.environ.get("OPENDISORDER_DB", Path.home() / ".cache" / "opendisorder" / "cod.sqlite"))
@@ -30,6 +30,19 @@ def _build_index(args) -> int:
     with CODIndex(args.db, client=client) as index:
         n = index.build_from_metadata(csv_path)
     print(f"indexed {n} COD entries into {args.db}")
+    return 0
+
+
+def _import_archive(args) -> int:
+    with CODIndex(args.db) as index:
+        if index.n_entries() == 0:
+            print(f"index {args.db} is empty; run `opendisorder build-index` first", file=sys.stderr)
+            return 1
+        n = index.import_archive(args.source, max_cell_atoms=args.max_cell_atoms)
+        if args.parse:
+            ids = [r[0] for r in index.db.execute("SELECT cod_id FROM cifs")]
+            index.parse_missing(ids, processes=args.processes)
+    print(f"stored {n} CIFs from {args.source}")
     return 0
 
 
@@ -66,6 +79,13 @@ def main(argv=None) -> int:
     b.add_argument("--metadata", type=Path, help="existing COD CSV dump (result?id=%%&format=csv)")
     b.add_argument("--refresh", action="store_true", help="re-download the metadata dump")
     b.set_defaults(func=_build_index)
+
+    a = sub.add_parser("import-archive", help="bulk-load CIFs from a COD archive (streamed, not stored)")
+    a.add_argument("--source", default=COD_ARCHIVE_URL, help="archive URL or local .txz/.tgz (default: %(default)s)")
+    a.add_argument("--max-cell-atoms", type=float, help="skip entries with more atoms per conventional cell")
+    a.add_argument("--parse", action="store_true", help="also parse all stored CIFs into structures")
+    a.add_argument("--processes", type=int, default=1)
+    a.set_defaults(func=_import_archive)
 
     c = sub.add_parser("check", help="check structure files (CIF, POSCAR, ...) against the COD")
     c.add_argument("files", nargs="+", type=Path)

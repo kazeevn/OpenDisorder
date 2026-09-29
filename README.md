@@ -61,9 +61,15 @@ cliques) are merged into mixed sites, and the structure is compared again.
   - reduced formula, which supplies layer 1 candidates;
   - chemical system, which supplies layer 2 candidates, since an ordered realization usually has a
     different stoichiometry from the CIF formula.
-- CIFs are downloaded lazily, in zip batches of up to 300 via COD's REST API. They are parsed with
-  pymatgen (`occupancy_tolerance=1.05`), and the parsed structures are cached in the same database.
-  A local mirror of COD CIFs can be used instead (`cif_dir=`).
+- CIFs are bulk-loaded from COD's CIF archive (`opendisorder import-archive`). The ~17 GB
+  `cod-cifs-mysql.txz` is streamed and decompressed on the fly, not stored, and the CIFs are kept
+  zlib-compressed in the database (about 5 GB for all of COD). `--max-cell-atoms` keeps only a
+  part of COD when disk is short.
+- Entries missing from the archive, such as those added after its snapshot, are downloaded
+  lazily through COD's REST API in zip batches of up to 300. A local mirror of COD CIFs can also
+  be used (`cif_dir=`).
+- CIFs are parsed with pymatgen (`occupancy_tolerance=1.05`), and the parsed structures are cached
+  in the same database.
 - Layer 2 references are, by default, entries that COD flags `has disorder` or whose formula is
   fractional, plus same-formula entries. `--all-chemsys` considers every entry of the chemical
   system instead.
@@ -74,8 +80,9 @@ cliques) are merged into mixed sites, and the structure is compared again.
 
 ```bash
 pip install -e .
-opendisorder build-index                    # ~2 min; index in ~/.cache/opendisorder/cod.sqlite
-opendisorder check my.cif POSCAR --json     # downloads the COD CIFs it needs
+opendisorder build-index                    # metadata, ~2 min; index in ~/.cache/opendisorder/cod.sqlite
+opendisorder import-archive                 # optional bulk load of all CIFs (streams ~17 GB)
+opendisorder check my.cif POSCAR --json     # downloads any COD CIFs still missing
 ```
 
 ```python

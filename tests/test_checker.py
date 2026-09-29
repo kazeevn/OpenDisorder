@@ -76,3 +76,22 @@ def test_check_many_parallel(index):
     nacl = Structure.from_spacegroup("Fm-3m", Lattice.cubic(5.5), ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
     reports = checker.check_many([nacl, nacl.copy()], processes=2)
     assert all(r.kind is MatchKind.PRISTINE for r in reports)
+
+
+def test_import_archive(index, tmp_path):
+    import io
+    import tarfile
+
+    cif = index.get_cif("1000001")
+    archive = tmp_path / "cod.tgz"
+    with tarfile.open(archive, "w:gz") as tf:
+        for name in ("cif/1/00/00/1000001.cif", "cif/1/00/00/1000009.cif", "mysql/data.sql"):
+            data = cif.encode()
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+    index.db.execute("DELETE FROM cifs")
+    # 1000009 is not in the metadata index and the SQL dump is not a CIF
+    assert index.import_archive(archive) == 1
+    assert index.get_cif("1000001") == cif
+    assert index.get_cif("1000009") is None

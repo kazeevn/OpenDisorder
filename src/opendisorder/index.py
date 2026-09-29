@@ -30,7 +30,7 @@ from pathlib import Path
 
 from pymatgen.core import Composition, Structure
 
-from .cod import CODClient
+from .cod import COD_ARCHIVE_URL, CODClient, iter_archive_cifs
 
 logger = logging.getLogger(__name__)
 
@@ -335,6 +335,52 @@ class CODIndex:
                 logger.info("downloaded %d/%d CIFs", n, len(missing))
         self.db.commit()
         return n
+
+    def import_archive(
+        self,
+        source: str | Path = COD_ARCHIVE_URL,
+        max_cell_atoms: float | None = None,
+        only_indexed: bool = True,
+        overwrite: bool = False,
+        progress_every: int = 20000,
+    ) -> int:
+        """Bulk-load CIFs from a COD archive (URL or local file), streaming.
+
+        Args:
+            source: archive URL or path (see :func:`opendisorder.cod.iter_archive_cifs`).
+            max_cell_atoms: keep only entries with at most this many atoms in
+                the conventional cell (saves space; molecular crystals are big).
+            only_indexed: keep only entries present in the metadata index
+                (i.e. not retracted/erroneous/duplicate, with coordinates).
+            overwrite: replace CIFs already stored (by default CIFs fetched
+                through the API, which may be newer, are kept).
+
+        Returns the number of CIFs stored.  Entries newer than the archive are
+        still downloaded on demand through the API.
+        """
+        wanted: set[str] | None = None
+        if only_indexed or max_cell_atoms is not None:
+            sql, params = "SELECT cod_id FROM entries", []
+            if max_cell_atoms is not None:
+                sql += " WHERE natoms_cell IS NULL OR natoms_cell <= ?"
+                params.append(max_cell_atoms)
+            wanted = {r[0] for r in self.db.execute(sql, params)}
+        verb = "INSERT OR REPLACE" if overwrite else "INSERT OR IGNORE"
+        stored = seen = 0
+        for cod_id, text in iter_archive_cifs(source):
+            seen += 1
+            if wanted is not None and cod_id not in wanted:
+                continue
+            self.db.execute(f"{verb} INTO cifs VALUES (?,?)", (cod_id, zlib.compress(text.encode())))
+            stored += 1
+            if seen % progress_every == 0:
+                self.db.commit()
+                logger.info("archive: %d CIFs read, %d stored", seen, stored)
+        self.db.commit()
+        self.db.execute("INSERT OR REPLACE INTO meta VALUES ('archive_source', ?)", (str(source),))
+        self.db.commit()
+        logger.info("archive: %d CIFs read, %d stored", seen, stored)
+        return stored
 
     def parse_missing(self, cod_ids: Iterable[str], processes: int = 1) -> int:
         """Parse (and cache) structures for ``cod_ids`` whose CIFs are available."""
