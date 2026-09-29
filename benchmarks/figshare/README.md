@@ -28,11 +28,11 @@ COD id and the occupancy deviations. `results/summary.csv` holds the table below
 
 These were computed at the commit "Precision fixes from the match audit", with default options.
 
-**known** =  at default tolerances + . **pristine (loose only)**
+**known** = `pristine` at default tolerances + `disordered_realization`. **pristine (loose only)**
 counts structures that match only at the loose retry tolerances (0.3 / 0.5 / 10°, with a density
-guard). Those are mostly distorted or unphysical geometries: 2.7% of  and 4.3% of
-, but only 0.5% of the control. Leave them out when comparing models. The
-per-structure column  records which tolerance a match needed.
+guard). Those are mostly distorted or unphysical geometries: 2.7% of `Compositional` and 4.3% of
+`Crys-JEPA`, but only 0.5% of the control. Leave them out when comparing models. The
+per-structure column `pristine_tolerance` records which tolerance a match needed.
 
 | model                              |     n |   pristine (default tol.) |   pristine (loose only) |   realization |   family |   substitutional |   sibling |   known (default tol.) |   none |
 |:-----------------------------------|------:|--------------------------:|------------------------:|--------------:|---------:|-----------------:|----------:|-----------------------:|-------:|
@@ -86,10 +86,10 @@ recent change.
 The disorder layers reconcile the two descriptions. Of the MP-20 test structures that MP
 flags as theoretical:
 
-- 523 are `disordered_realization`s of disordered COD entries;
-- 618 are `substitutional_ordering`s;
-- 206 are `disordered_family`;
-- 104 are `pristine` matches;
+- 518 are `disordered_realization`s of disordered COD entries;
+- 608 are `substitutional_ordering`s;
+- 168 are `disordered_family`;
+- 125 are `pristine` matches;
 - 100 carry MP's "Ordering of Disordered Crystal" tag.
 
 A large part of this "theoretical" half are MP's own **ordered approximants of compositionally
@@ -122,8 +122,8 @@ disorder grades instead, and the "none" share reflects COD's coverage.
 
 | MP flag | n | known % | any match % | no same-formula COD entry % |
 |---|---|---|---|---|
-| experimental (`theoretical=False`) | 3,929 | 47.1 | 49.1 | 47.1 |
-| theoretical | 4,833 | 13.0 | 30.4 | 65.1 |
+| experimental (`theoretical=False`) | 3,929 | 47.1 | 49.0 | 47.2 |
+| theoretical | 4,833 | 12.9 | 29.4 | 66.1 |
 
 **COD covers about half of the experimental entries.** Of the 2,003 experimental entries
 without any match, 1,854 have no same-formula COD entry at all; for 1,824 the formula appears
