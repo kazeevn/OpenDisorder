@@ -50,6 +50,14 @@ class NoveltyReport:
         return self.kind not in (MatchKind.PRISTINE, MatchKind.DISORDERED_REALIZATION)
 
     @property
+    def is_novel_strict(self) -> bool:
+        """Novel under a strict reading: no match of any kind, i.e. also not a
+        different stoichiometry of a known disordered phase (the case of
+        MatterGen's TaCr2O6 vs. Ta1/2Cr1/2O2, Juelsholt 2026) nor a different
+        ordering of similar elements on a known structure."""
+        return self.kind is MatchKind.NONE
+
+    @property
     def cod_ids(self) -> list[str]:
         return [m.reference_id for m in self.matches if m.reference_id]
 
@@ -60,6 +68,7 @@ class NoveltyReport:
         d = asdict(self)
         d["kind"] = self.kind.value
         d["is_novel"] = self.is_novel
+        d["is_novel_strict"] = self.is_novel_strict
         d["matches"] = [{"cod_id": m.reference_id, "kind": m.kind.value, **m.details} for m in self.matches]
         return d
 
@@ -146,7 +155,7 @@ class NoveltyChecker:
         max_atoms = opts.max_cell_atoms_factor * structure.composition.num_atoms if opts.max_cell_atoms_factor else None
         pristine = self.index.ids_by_reduced_formula(rf, max_cell_atoms=max_atoms)
         disorder: list[str] = []
-        if opts.check_disorder and structure.is_ordered:
+        if opts.check_disorder:
             disorder = self.index.ids_by_chemsys(
                 cs, disorder_only=opts.disorder_candidates_flagged_only, max_cell_atoms=max_atoms
             )
@@ -207,7 +216,21 @@ class NoveltyChecker:
         if report.matches and not opts.exhaustive:
             return self._finish(report)
 
-        if not q.is_ordered or not opts.check_disorder:
+        if not opts.check_disorder:
+            return self._finish(report)
+
+        if not q.is_ordered:
+            # disordered query: same disordered phase with other occupancies / family
+            others = [cid for cid in dict.fromkeys(disorder_ids) if cid in refs and not refs[cid].is_ordered]
+            others = [cid for cid in others if cid not in same_formula]
+            report.n_disorder_candidates = len(others)
+            for cid in others:
+                res = self._compare(report, self.disorder.match_disordered, q, refs[cid])
+                if res is not None and res.kind is not MatchKind.NONE:
+                    res.reference_id = cid
+                    report.matches.append(res)
+                    if res.kind is MatchKind.PRISTINE and not opts.exhaustive:
+                        break
             return self._finish(report)
 
         # ---- layer 2a: ordered realization of a disordered entry

@@ -121,6 +121,15 @@ def _site_key(site, ndigits: int = 3) -> tuple:
     return tuple(sorted((el.symbol, round(float(occ), ndigits)) for el, occ in site.species.items()))
 
 
+class ElementSetComparator(OrderDisorderElementComparator):
+    """Sites match if one's element set contains the other's; structures are
+    pre-screened on their element sets rather than on fractional composition,
+    so disordered structures with different occupancies can be compared."""
+
+    def get_hash(self, composition):
+        return "-".join(sorted({el.symbol for el in composition.elements}))
+
+
 # --------------------------------------------------------------------------- pristine
 
 
@@ -203,6 +212,15 @@ class DisorderMatcher:
         )
         self._screen = StructureMatcher(primitive_cell=True, **common)
         self._mapper = StructureMatcher(primitive_cell=False, **common)
+        self._screen_disordered = StructureMatcher(
+            ltol=self.ltol,
+            stol=self.stol,
+            angle_tol=self.angle_tol,
+            primitive_cell=True,
+            scale=True,
+            attempt_supercell=True,
+            comparator=ElementSetComparator(),
+        )
 
     # -- public -------------------------------------------------------------
 
@@ -227,6 +245,31 @@ class DisorderMatcher:
         if mapped is None:
             return MatchResult(MatchKind.NONE, details={"reason": "no mapping"})
         return self._verify(q, mapped)
+
+    def match_disordered(self, query: Structure, reference: Structure) -> MatchResult:
+        """Grade a *disordered* query against a disordered reference.
+
+        Both must share the framework and the site-species pattern (each
+        query site's element set contained in, or containing, the matched
+        reference site's).  Compositions within the global tolerance give
+        ``PRISTINE`` (the same disordered phase, occupancies refined
+        differently); otherwise ``DISORDERED_FAMILY`` (e.g. Ta1/3Cr2/3O2 vs.
+        Ta1/2Cr1/2O2).
+        """
+        if {el.symbol for el in query.composition.elements} != {el.symbol for el in reference.composition.elements}:
+            return MatchResult(MatchKind.NONE, details={"reason": "elements"})
+        try:
+            fit = self._screen_disordered.fit(query, reference)
+        except Exception as exc:
+            logger.debug("match_disordered failed: %s", exc)
+            return MatchResult(MatchKind.NONE, details={"reason": f"matcher error: {exc}"})
+        if not fit:
+            return MatchResult(MatchKind.NONE, details={"reason": "no framework fit"})
+        comp_ok = fractional_composition_close(
+            query.composition, reference.composition, self.composition_atol, self.composition_rtol
+        )
+        details = {"global_composition_ok": comp_ok, "reference_composition": reference.composition.formula}
+        return MatchResult(MatchKind.PRISTINE if comp_ok else MatchKind.DISORDERED_FAMILY, details=details)
 
     # -- internals ----------------------------------------------------------
 

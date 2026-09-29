@@ -62,6 +62,7 @@ def run_set(checker: NoveltyChecker, name: str, processes: int, fetch: bool) -> 
                 "nsites": len(s),
                 "kind": rep.kind.value,
                 "is_novel": rep.is_novel,
+                "is_novel_strict": rep.is_novel_strict,
                 "best_cod_id": best.reference_id if best else None,
                 "cod_ids": ";".join(f"{m.reference_id}:{m.kind.value}" for m in rep.matches),
                 "max_site_occupancy_deviation": (best.details.get("max_site_occupancy_deviation") if best else None),
@@ -83,6 +84,7 @@ def summarize(frames: list[pd.DataFrame]) -> pd.DataFrame:
             row[f"{k} %"] = 100.0 * counts.get(k, 0) / n
         row["known (pristine + realization) %"] = 100.0 * (~df["is_novel"]).sum() / n
         row["novel %"] = 100.0 * df["is_novel"].sum() / n
+        row["novel (strict) %"] = 100.0 * df["is_novel_strict"].sum() / n
         row["with errors/timeouts"] = int((df["errors"].fillna("") != "").sum())
         rows.append(row)
     return pd.DataFrame(rows)

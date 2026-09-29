@@ -65,7 +65,8 @@ def _check(args) -> int:
             print(json.dumps({"file": str(f), **rep.to_dict()}))
         else:
             ids = ", ".join(f"{m.reference_id} ({m.kind.value})" for m in rep.matches) or "-"
-            print(f"{f}\t{rep.formula}\t{'novel' if rep.is_novel else 'known'}\t{rep.kind.value}\t{ids}")
+            verdict = "novel" if rep.is_novel_strict else ("known" if not rep.is_novel else "suspicious")
+            print(f"{f}\t{rep.formula}\t{verdict}\t{rep.kind.value}\t{ids}")
     return 0
 
 

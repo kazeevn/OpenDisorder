@@ -119,3 +119,29 @@ def test_sibling_ordering():
     assert not PristineMatcher().fit(l10, l11)
     sm = SiblingOrderingMatcher()
     assert sm.fit(sm.prepare(l10), l10, l11)
+
+
+def test_disordered_vs_disordered(dm):
+    rutile = dict(sg="P4_2/mnm", coords=[[0, 0, 0], [0.3, 0.3, 0]])
+
+    def rut(occ, c=3.0):
+        return Structure.from_spacegroup(rutile["sg"], Lattice.tetragonal(4.64, c), [occ, "O"], rutile["coords"])
+
+    half = rut({"Ta": 0.5, "Cr": 0.5})
+    assert dm.match_disordered(rut({"Ta": 1 / 3, "Cr": 2 / 3}), half).kind is MatchKind.DISORDERED_FAMILY
+    assert dm.match_disordered(rut({"Ta": 0.48, "Cr": 0.52}, c=3.05), half).kind is MatchKind.PRISTINE
+    rocksalt = disordered_rocksalt({"Ta": 0.5, "Cr": 0.5})
+    assert dm.match_disordered(rocksalt, half).kind is MatchKind.NONE
+
+
+def test_mattergen_tacr2o6_regression():
+    """MatterGen's TaCr2O6 is Ta1/3Cr2/3O2, same disordered rutile as Ta1/2Cr1/2O2
+    (COD 9011856); ordered TaCrO4 from Materials Project is a realization of it."""
+    from pathlib import Path
+
+    data = Path(__file__).parent / "data"
+    cod = Structure.from_file(data / "cod_9011856.cif")
+    assert not cod.is_ordered
+    dm = DisorderMatcher()
+    assert dm.match(Structure.from_file(data / "mattergen_TaCr2O6.cif"), cod).kind is MatchKind.DISORDERED_FAMILY
+    assert dm.match(Structure.from_file(data / "mp-753467_TaCrO4.cif"), cod).kind is MatchKind.DISORDERED_REALIZATION
