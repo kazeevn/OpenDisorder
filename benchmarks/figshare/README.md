@@ -26,32 +26,38 @@ COD id and the occupancy deviations. `results/summary.csv` holds the table below
 
 ## Results (% of structures)
 
-**known** = `pristine` + `disordered_realization`; **no match** = `none`.
-The other grades are described in the top-level README.
+These were computed at the commit "Precision fixes from the match audit", with default options.
 
-| model                              | set                                                        |     n |   pristine |   realization |   family |   substitutional |   sibling |   known |   no match |
-|:-----------------------------------|:-----------------------------------------------------------|------:|-----------:|--------------:|---------:|-----------------:|----------:|--------:|-----------:|
-| DiffCSP                            | mp_20 / DiffCSP                                            | 10000 |        5.8 |           0.7 |      1.2 |              3.4 |       0.4 |     6.4 |       88.6 |
-| DiffCSP++                          | mp_20 / DiffCSP++                                          | 10000 |        4.5 |           0.7 |      1.1 |              3.3 |       0.3 |     5.2 |       90.1 |
-| CrystalFormer                      | mp_20 / CrystalFormer                                      |   999 |        6.2 |           1.2 |      0.8 |              4.0 |       0.1 |     7.4 |       87.7 |
-| SymmCD                             | mp_20 / SymmCD                                             |  9475 |        4.3 |           0.5 |      0.7 |              3.7 |       0.3 |     4.8 |       90.5 |
-| MiAD                               | mp_20 / MiAD                                               |  9996 |        9.0 |           2.4 |      2.4 |              5.5 |       1.0 |    11.4 |       79.7 |
-| MatterGen                          | mp_20 / MatterGen / MatterGen_10k                          | 10000 |        4.3 |           0.8 |      1.7 |              4.4 |       0.4 |     5.2 |       88.4 |
-| Compositional                      | mp_20 / Compositional                                      | 10000 |        0.4 |           0.0 |      0.1 |              0.1 |       0.1 |     0.4 |       99.4 |
-| Crys-JEPA                          | mp_20 / Crys-JEPA                                          | 10000 |        2.0 |           0.6 |      2.7 |              5.5 |       0.3 |     2.6 |       88.9 |
-| WyFormer+DiffCSP++                 | mp_20 / WyckoffTransformer / DiffCSP++                     |  1000 |        3.7 |           0.4 |      1.3 |              3.4 |       0.1 |     4.1 |       91.1 |
-| WyFormer+DiffCSP++ (10k)           | mp_20 / WyckoffTransformer / DiffCSP++10k                  |  9999 |        3.2 |           0.3 |      0.8 |              2.9 |       0.3 |     3.5 |       92.6 |
-| WyFormer+CrySPR                    | mp_20 / WyckoffTransformer / CrySPR / CHGNet_fix           |  1000 |        3.6 |           0.4 |      1.2 |              3.2 |       0.0 |     4.0 |       91.6 |
-| WyFormer-letters+DiffCSP++         | mp_20 / WyckoffTransformer-letters / DiffCSP++             |   996 |        3.0 |           0.2 |      1.1 |              2.8 |       0.2 |     3.2 |       92.7 |
-| WyFormer-harmonic+DiffCSP++        | mp_20 / WyckoffTransformer-harmonic / DiffCSP++            |  1000 |        2.7 |           0.6 |      0.7 |              2.6 |       0.2 |     3.3 |       93.2 |
-| WyckoffLLM-naive+DiffCSP++         | mp_20 / WyckoffLLM-naive / DiffCSP++                       |   999 |        2.2 |           0.4 |      0.4 |              3.7 |       0.1 |     2.6 |       93.2 |
-| WyckoffLLM-site-symmetry+DiffCSP++ | mp_20 / WyckoffLLM-site-symmetry / DiffCSP++               |   999 |        3.2 |           0.9 |      0.8 |              4.6 |       0.4 |     4.1 |       90.1 |
-| WyckoffLLM-vanilla+DiffCSP++       | mp_20 / WyckoffLLM-vanilla / DiffCSP++                     |  1000 |       13.0 |           0.1 |      2.4 |              1.3 |       0.2 |    13.1 |       83.0 |
-| WyCryst+CrySPR                     | mp_20_biternary / WyCryst / CrySPR / CHGNet_fix            |   994 |       10.6 |           1.9 |      1.7 |              4.6 |       0.3 |    12.5 |       80.9 |
-| WyFormer+CrySPR                    | mp_20_biternary / WyckoffTransformer / CrySPR / CHGNet_fix |   999 |        2.8 |           0.5 |      1.2 |              3.2 |       0.4 |     3.3 |       91.9 |
-| SymmCD                             | mpts_52 / SymmCD                                           |  9170 |        3.6 |           0.2 |      0.4 |              1.1 |       0.2 |     3.8 |       94.4 |
-| WyFormer+CrySPR                    | mpts_52 / WyckoffTransformer / CrySPR / CHGNet_fix         |   995 |        0.8 |           0.0 |      0.2 |              0.1 |       0.2 |     0.8 |       98.7 |
-| MP-20 test split (control)         | mp_20 / split / test                                       |  9046 |       21.2 |           6.5 |      2.6 |              7.2 |       0.4 |    27.8 |       61.9 |
+**known** =  at default tolerances + . **pristine (loose only)**
+counts structures that match only at the loose retry tolerances (0.3 / 0.5 / 10°, with a density
+guard). Those are mostly distorted or unphysical geometries: 2.7% of  and 4.3% of
+, but only 0.5% of the control. Leave them out when comparing models. The
+per-structure column  records which tolerance a match needed.
+
+| model                              |     n |   pristine (default tol.) |   pristine (loose only) |   realization |   family |   substitutional |   sibling |   known (default tol.) |   none |
+|:-----------------------------------|------:|--------------------------:|------------------------:|--------------:|---------:|-----------------:|----------:|-----------------------:|-------:|
+| DiffCSP                            | 10000 |                       5.8 |                     0.4 |           0.6 |      0.8 |              3.2 |       0.0 |                    6.4 |   89.1 |
+| DiffCSP++                          | 10000 |                       4.5 |                     0.3 |           0.7 |      0.8 |              3.2 |       0.0 |                    5.2 |   90.5 |
+| CrystalFormer                      |   999 |                       6.2 |                     0.0 |           1.2 |      0.6 |              3.9 |       0.0 |                    7.4 |   88.1 |
+| SymmCD                             |  9475 |                       4.3 |                     0.6 |           0.5 |      0.5 |              3.5 |       0.0 |                    4.8 |   90.5 |
+| MiAD                               |  9996 |                       9.0 |                     0.3 |           2.4 |      1.8 |              5.4 |       0.0 |                   11.4 |   81.1 |
+| MatterGen                          | 10000 |                       4.3 |                     0.2 |           0.8 |      1.2 |              4.3 |       0.0 |                    5.2 |   89.2 |
+| Compositional                      | 10000 |                       0.4 |                     2.7 |           0.0 |      0.0 |              0.0 |       0.0 |                    0.4 |   96.8 |
+| Crys-JEPA                          | 10000 |                       2.0 |                     4.3 |           0.6 |      1.6 |              5.1 |       0.0 |                    2.6 |   86.5 |
+| WyFormer+DiffCSP++                 |  1000 |                       3.7 |                     0.2 |           0.4 |      1.1 |              3.3 |       0.0 |                    4.1 |   91.3 |
+| WyFormer+DiffCSP++ (10k)           |  9999 |                       3.2 |                     0.2 |           0.3 |      0.6 |              2.7 |       0.0 |                    3.5 |   93.0 |
+| WyFormer+CrySPR                    |  1000 |                       3.6 |                     0.5 |           0.4 |      0.9 |              3.1 |       0.0 |                    4.0 |   91.5 |
+| WyFormer-letters+DiffCSP++         |   996 |                       3.0 |                     0.3 |           0.3 |      0.5 |              2.9 |       0.0 |                    3.3 |   93.0 |
+| WyFormer-harmonic+DiffCSP++        |  1000 |                       2.7 |                     0.3 |           0.6 |      0.5 |              2.4 |       0.0 |                    3.3 |   93.5 |
+| WyckoffLLM-naive+DiffCSP++         |   999 |                       2.2 |                     0.0 |           0.4 |      0.3 |              3.7 |       0.0 |                    2.6 |   93.4 |
+| WyckoffLLM-site-symmetry+DiffCSP++ |   999 |                       3.2 |                     0.1 |           0.9 |      0.6 |              4.3 |       0.0 |                    4.1 |   90.9 |
+| WyckoffLLM-vanilla+DiffCSP++       |  1000 |                      13.0 |                     0.5 |           0.1 |      2.4 |              1.2 |       0.0 |                   13.1 |   82.8 |
+| WyCryst+CrySPR                     |   994 |                      10.6 |                     0.5 |           1.9 |      1.3 |              4.5 |       0.0 |                   12.5 |   81.2 |
+| WyFormer+CrySPR                    |   999 |                       2.8 |                     0.5 |           0.5 |      0.8 |              3.1 |       0.0 |                    3.3 |   92.3 |
+| SymmCD                             |  9170 |                       3.6 |                     0.5 |           0.2 |      0.3 |              1.1 |       0.0 |                    3.8 |   94.3 |
+| WyFormer+CrySPR                    |   995 |                       0.8 |                     0.2 |           0.0 |      0.1 |              0.1 |       0.0 |                    0.8 |   98.8 |
+| MP-20 test split (control)         |  9046 |                      21.2 |                     0.5 |           6.5 |      2.2 |              7.1 |       0.0 |                   27.7 |   62.5 |
+
 ## Reading the numbers
 
 - **COD coverage limits every number.** Even the MP-20 test split, which consists of real
@@ -107,9 +113,9 @@ against COD by MP origin are:
 
 | MP origin | n | pristine | realization | substitutional | family | none |
 |---|---|---|---|---|---|---|
-| ordered ICSD | 1,003 | 15.2% | 1.7% | 1.1% | 1.6% | 79.9% |
-| ordering of a disordered ICSD entry | 1,385 | **0.5%** | **26.4%** | **19.4%** | 5.3% | 48.1% |
-| other / untagged | 6,658 | 26.5% | 3.1% | 5.6% | 2.2% | 62.1% |
+| ordered ICSD | 1,003 | 15.8% | 1.8% | 0.9% | 1.4% | 80.1% |
+| ordering of a disordered ICSD entry | 1,385 | **0.6%** | **26.2%** | **18.6%** | 4.8% | 49.7% |
+| other / untagged | 6,658 | 27.1% | 3.0% | 5.6% | 1.7% | 62.5% |
 
 MP's orderings of disordered phases almost never match COD as `pristine`. They land in the
 disorder grades instead, and the "none" share reflects COD's coverage.
@@ -119,8 +125,8 @@ disorder grades instead, and the "none" share reflects COD's coverage.
 | experimental (`theoretical=False`) | 3,929 | 47.1 | 49.1 | 47.1 |
 | theoretical | 4,833 | 13.0 | 30.4 | 65.1 |
 
-**COD covers about half of the experimental entries.** Of the 1,999 experimental entries
-without any match, 1,849 have no same-formula COD entry at all; for 1,824 the formula appears
+**COD covers about half of the experimental entries.** Of the 2,003 experimental entries
+without any match, 1,854 have no same-formula COD entry at all; for 1,824 the formula appears
 nowhere in COD's metadata. The remaining 150 are mostly different polymorphs, according to the
 audit sample.
 
@@ -167,4 +173,4 @@ loose-tolerance retry addresses. The `Compositional` set has unphysical geometri
 shortest interatomic distance is 1.3 Å, and 78% have contacts below 0.6 × the sum of the atomic
 radii. That explains its 99% "no match".
 
-The table above predates these fixes. Results will be regenerated at HEAD.
+The results table above was computed with these fixes applied.

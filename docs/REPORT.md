@@ -19,8 +19,9 @@ their raw results are in `benchmarks/`.*
   ordered-vacancy matches, stoichiometry "families" and substitutional orderings that MatterGen
   cannot find, because it only searches the query's own chemical system.
 - **Generated crystals.** On 99.6k generated crystals from 10 generative models (figshare
-  29145101), 5–15% match COD. For most models about half of the matches are
-  disorder-related rather than exact.
+  29145101), 3–13% are known to COD at default tolerances, and another 3–7% fall into the
+  disorder grades. For most MP-20 models the disorder-related matches are comparable in number
+  to the exact ones.
 - **COD coverage is the main limit.** COD recognises only about half of the experimentally
   observed MP-20 materials, so "no COD match" is weak evidence of novelty.
 - **MP-20.** About half of MP-20 is flagged `theoretical` by Materials Project (MP). A large
@@ -170,38 +171,48 @@ MP-20 test split, `opendisorder` grades those 1,385 entries as:
 The 1,003 entries built from *ordered* ICSD structures come out 15.2% `pristine` and only 4.4%
 in the disorder grades.
 
-## 4. Generated crystals (`benchmarks/figshare`)
+## 4. Generated crystals ()
 
-Values are % of structures; the run uses code at HEAD, including the precision fixes.
+Values are % of structures, with the precision fixes applied. **known** =  at default
+tolerances + . "loose" = matched only at the loose retry tolerances.
 
-| model (training set) | n | pristine | realization | family | substitutional | none |
-|---|---|---|---|---|---|---|
-| DiffCSP (MP-20) | 10,000 | 6.2 | 0.6 | 0.8 | 3.2 | 89.1 |
-| DiffCSP++ | 10,000 | 4.8 | 0.7 | 0.8 | 3.2 | 90.5 |
-| CrystalFormer | 999 | 6.2 | 1.2 | 0.6 | 3.9 | 88.1 |
-| SymmCD | 9,475 | 5.0 | 0.5 | 0.5 | 3.5 | 90.5 |
-| MiAD | 9,996 | 9.3 | 2.4 | 1.8 | 5.4 | 81.1 |
-| MatterGen | 10,000 | 4.5 | 0.8 | 1.2 | 4.3 | 89.2 |
-| Crys-JEPA | 10,000 | 6.3 | 0.6 | 1.6 | 5.1 | 86.5 |
-| Compositional | 10,000 | 3.1 | 0.0 | 0.0 | 0.0 | 96.8 |
-| WyFormer + DiffCSP++ (10k) | 9,999 | 3.4 | 0.3 | 0.6 | 2.7 | 93.0 |
-| WyFormer + CrySPR | 1,000 | 4.1 | 0.4 | 0.9 | 3.1 | 91.5 |
-| WyckoffLLM-vanilla + DiffCSP++ | 1,000 | 13.5 | 0.1 | 2.4 | 1.2 | 82.8 |
-| WyCryst + CrySPR (MP-20 biternary) | 994 | 11.1 | 1.9 | 1.3 | 4.5 | 81.2 |
-| SymmCD (MPTS-52), WyFormer (MPTS-52), MP-20 test control | | *rerun in progress* | | | | |
-
-`sibling_ordering` is 0.0–0.1% everywhere. The full per-set table and per-structure results are
-in `benchmarks/figshare/results/`.
+| model                              |     n |   pristine (default tol.) |   pristine (loose only) |   realization |   family |   substitutional |   sibling |   known (default tol.) |   none |
+|:-----------------------------------|------:|--------------------------:|------------------------:|--------------:|---------:|-----------------:|----------:|-----------------------:|-------:|
+| DiffCSP                            | 10000 |                       5.8 |                     0.4 |           0.6 |      0.8 |              3.2 |       0.0 |                    6.4 |   89.1 |
+| DiffCSP++                          | 10000 |                       4.5 |                     0.3 |           0.7 |      0.8 |              3.2 |       0.0 |                    5.2 |   90.5 |
+| CrystalFormer                      |   999 |                       6.2 |                     0.0 |           1.2 |      0.6 |              3.9 |       0.0 |                    7.4 |   88.1 |
+| SymmCD                             |  9475 |                       4.3 |                     0.6 |           0.5 |      0.5 |              3.5 |       0.0 |                    4.8 |   90.5 |
+| MiAD                               |  9996 |                       9.0 |                     0.3 |           2.4 |      1.8 |              5.4 |       0.0 |                   11.4 |   81.1 |
+| MatterGen                          | 10000 |                       4.3 |                     0.2 |           0.8 |      1.2 |              4.3 |       0.0 |                    5.2 |   89.2 |
+| Compositional                      | 10000 |                       0.4 |                     2.7 |           0.0 |      0.0 |              0.0 |       0.0 |                    0.4 |   96.8 |
+| Crys-JEPA                          | 10000 |                       2.0 |                     4.3 |           0.6 |      1.6 |              5.1 |       0.0 |                    2.6 |   86.5 |
+| WyFormer+DiffCSP++                 |  1000 |                       3.7 |                     0.2 |           0.4 |      1.1 |              3.3 |       0.0 |                    4.1 |   91.3 |
+| WyFormer+DiffCSP++ (10k)           |  9999 |                       3.2 |                     0.2 |           0.3 |      0.6 |              2.7 |       0.0 |                    3.5 |   93.0 |
+| WyFormer+CrySPR                    |  1000 |                       3.6 |                     0.5 |           0.4 |      0.9 |              3.1 |       0.0 |                    4.0 |   91.5 |
+| WyFormer-letters+DiffCSP++         |   996 |                       3.0 |                     0.3 |           0.3 |      0.5 |              2.9 |       0.0 |                    3.3 |   93.0 |
+| WyFormer-harmonic+DiffCSP++        |  1000 |                       2.7 |                     0.3 |           0.6 |      0.5 |              2.4 |       0.0 |                    3.3 |   93.5 |
+| WyckoffLLM-naive+DiffCSP++         |   999 |                       2.2 |                     0.0 |           0.4 |      0.3 |              3.7 |       0.0 |                    2.6 |   93.4 |
+| WyckoffLLM-site-symmetry+DiffCSP++ |   999 |                       3.2 |                     0.1 |           0.9 |      0.6 |              4.3 |       0.0 |                    4.1 |   90.9 |
+| WyckoffLLM-vanilla+DiffCSP++       |  1000 |                      13.0 |                     0.5 |           0.1 |      2.4 |              1.2 |       0.0 |                   13.1 |   82.8 |
+| WyCryst+CrySPR                     |   994 |                      10.6 |                     0.5 |           1.9 |      1.3 |              4.5 |       0.0 |                   12.5 |   81.2 |
+| WyFormer+CrySPR                    |   999 |                       2.8 |                     0.5 |           0.5 |      0.8 |              3.1 |       0.0 |                    3.3 |   92.3 |
+| SymmCD                             |  9170 |                       3.6 |                     0.5 |           0.2 |      0.3 |              1.1 |       0.0 |                    3.8 |   94.3 |
+| WyFormer+CrySPR                    |   995 |                       0.8 |                     0.2 |           0.0 |      0.1 |              0.1 |       0.0 |                    0.8 |   98.8 |
+| MP-20 test split (control)         |  9046 |                      21.2 |                     0.5 |           6.5 |      2.2 |              7.1 |       0.0 |                   27.7 |   62.5 |
 
 How to read these numbers:
 
 - **Disorder is a large part of the matches.** Realization, family and substitution together
-  are comparable to the exact-match rate. MP-20-trained models reproduce the orderings of
-  disordered phases that MP-20 itself contains; see section 5.
-- **The loose-tolerance retry.** Many generated structures are unrelaxed, so exact matching is
-  retried at loose tolerances (0.3 / 0.5 / 10°) with a density guard. It raises every set's
-  `pristine` rate, including the `Compositional` baseline (0.4 → 3.1%), whose geometries are
-  unphysical. The split between default and loose tolerance will be reported per set.
+  are comparable to the exact-match rate for most MP-20 models. MP-20-trained models reproduce
+  the orderings of disordered phases that MP-20 itself contains; see section 5.
+- **Loose-only matches mostly reflect geometry quality.** They are 0.2–0.6% for most models
+  and 0.5% for the control, but 2.7% for , whose geometries are unphysical, and
+  4.3% for . Compare models on default-tolerance counts.
+- **The precision fixes were not what moved the figures.** Headline numbers barely changed
+  after them.  dropped from 0.1–1.0% to 0.0% per set, and 
+  fell by about a quarter.
+- **Wyckoff-token LLM.**  has a high exact-match rate (13%) and little
+  disorder, which fits a model that reproduces known templates.
 
 ## 5. COD coverage and what MP-20 really contains
 
@@ -217,7 +228,7 @@ How to read these numbers:
   structure as theoretical: `new_disordered_icsd_2017` covers 14,000 materials, 100% flagged
   theoretical, 0% ICSD-linked. An ordered approximant matches no ICSD record. At least 1,379 of
   the 4,833 "theoretical" MP-20 test entries carry such tags. `opendisorder` grades most of the
-  theoretical entries it can match as realizations or substitutions (1,141), and only 104 as
+  theoretical entries it can match as realizations or substitutions (1,126), and only 125 as
   pristine.
 - **Consequence.** "Novel with respect to COD" overstates novelty for MP-20-trained models. Two
   better options:
