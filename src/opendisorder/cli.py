@@ -38,7 +38,7 @@ def _check(args) -> int:
         check_disorder=not args.no_disorder,
         check_siblings=not args.no_siblings,
         exhaustive=args.exhaustive,
-        disorder_candidates_flagged_only=args.flagged_only,
+        disorder_candidates_flagged_only=not args.all_chemsys,
     )
     structures = [Structure.from_file(f) for f in args.files]
     with CODIndex(args.db, client=None if args.offline else CODClient(), cif_dir=args.cif_dir) as index:
@@ -75,7 +75,11 @@ def main(argv=None) -> int:
     c.add_argument("--cif-dir", type=Path, help="local mirror of COD CIFs")
     c.add_argument("--no-disorder", action="store_true", help="skip layer 2")
     c.add_argument("--no-siblings", action="store_true", help="skip the sibling-ordering check")
-    c.add_argument("--flagged-only", action="store_true", help="layer 2: only entries flagged as disordered")
+    c.add_argument(
+        "--all-chemsys",
+        action="store_true",
+        help="layer 2: consider every entry of the chemical system, not only those COD flags as disordered",
+    )
     c.add_argument("--exhaustive", action="store_true", help="report all matching entries")
     c.set_defaults(func=_check)
 

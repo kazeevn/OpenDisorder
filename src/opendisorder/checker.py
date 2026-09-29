@@ -96,10 +96,16 @@ class CheckOptions:
     check_disorder: bool = True
     check_siblings: bool = True
     exhaustive: bool = False
-    disorder_candidates_flagged_only: bool = False
-    """Only consider COD entries flagged ``has disorder`` or with a fractional
-    formula as disordered references (saves downloads, may miss entries whose
-    mixed occupancy is not reflected in the flags/formula)."""
+    disorder_candidates_flagged_only: bool = True
+    """Layer 2 references are COD entries of the same chemical system that COD
+    flags ``has disorder`` or whose formula is fractional, plus same-formula
+    entries.  ``False`` downloads every entry of the chemical system and
+    decides from the parsed CIF (slower, catches unflagged disorder)."""
+    max_cell_atoms_factor: float | None = 4.4
+    """Skip COD entries whose conventional cell has more than this many times
+    the number of atoms of the query.  An ordered realization contains at
+    least one primitive cell of the reference, and a conventional cell holds
+    at most 4 primitive cells; the extra 10% covers composition tolerance."""
     time_limit: float | None = 30.0
     """Seconds allowed per structure comparison (``None`` = no limit)."""
 
@@ -133,12 +139,17 @@ class NoveltyChecker:
     # ------------------------------------------------------------------ candidates
 
     def candidate_ids(self, structure: Structure) -> tuple[list[str], list[str]]:
+        """COD ids for layer 1 (same reduced formula) and layer 2 (same chemical system)."""
+        opts = self.options
         rf = structure.composition.reduced_formula
         cs = chemsys(structure)
-        pristine = self.index.ids_by_reduced_formula(rf)
+        max_atoms = opts.max_cell_atoms_factor * structure.composition.num_atoms if opts.max_cell_atoms_factor else None
+        pristine = self.index.ids_by_reduced_formula(rf, max_cell_atoms=max_atoms)
         disorder: list[str] = []
-        if self.options.check_disorder and structure.is_ordered:
-            disorder = self.index.ids_by_chemsys(cs, disorder_only=self.options.disorder_candidates_flagged_only)
+        if opts.check_disorder and structure.is_ordered:
+            disorder = self.index.ids_by_chemsys(
+                cs, disorder_only=opts.disorder_candidates_flagged_only, max_cell_atoms=max_atoms
+            )
         return pristine, disorder
 
     def prefetch(self, structures: Iterable[Structure], processes: int = 1) -> int:
@@ -200,7 +211,10 @@ class NoveltyChecker:
             return self._finish(report)
 
         # ---- layer 2a: ordered realization of a disordered entry
-        disordered = [cid for cid in dict.fromkeys(disorder_ids) if cid in refs and not refs[cid].is_ordered]
+        # same-formula disordered entries are layer-2 references too
+        disordered = [
+            cid for cid in dict.fromkeys([*disorder_ids, *pristine_ids]) if cid in refs and not refs[cid].is_ordered
+        ]
         report.n_disorder_candidates = len(disordered)
         found_realization = False
         for cid in disordered:

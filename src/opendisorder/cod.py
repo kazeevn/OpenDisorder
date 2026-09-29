@@ -107,22 +107,36 @@ class CODClient:
         return self._request("GET", f"{self.base_url}/{cod_id}.cif").text
 
     def iter_cifs(self, cod_ids: Iterable[str | int], batch_size: int = MAX_ZIP_BATCH) -> Iterator[tuple[str, str]]:
-        """Yield ``(cod_id, cif_text)`` pairs, fetching in zip batches."""
+        """Yield ``(cod_id, cif_text)`` pairs, fetching in zip batches.
+
+        A batch that keeps failing is split in halves; single entries are
+        fetched as plain CIFs.  Entries that cannot be downloaded are skipped
+        with a warning.
+        """
         ids = [str(i) for i in cod_ids]
         batch_size = min(batch_size, MAX_ZIP_BATCH)
         for start in range(0, len(ids), batch_size):
-            batch = ids[start : start + batch_size]
+            yield from self._fetch_batch(ids[start : start + batch_size])
+
+    def _fetch_batch(self, batch: list[str]) -> Iterator[tuple[str, str]]:
+        if len(batch) == 1:
             try:
-                resp = self._request("POST", f"{self.base_url}/result", data={"id": ",".join(batch), "format": "zip"})
-                zf = zipfile.ZipFile(io.BytesIO(resp.content))
-            except (requests.RequestException, zipfile.BadZipFile) as exc:
-                logger.warning("zip batch failed (%s); falling back to single downloads", exc)
-                for cod_id in batch:
-                    try:
-                        yield cod_id, self.get_cif(cod_id)
-                    except requests.RequestException as exc2:
-                        logger.warning("could not download COD %s: %s", cod_id, exc2)
-                continue
-            for name in zf.namelist():
-                if name.endswith(".cif"):
-                    yield Path(name).stem, zf.read(name).decode("utf-8", errors="replace")
+                yield batch[0], self.get_cif(batch[0])
+            except requests.RequestException as exc:
+                logger.warning("could not download COD %s: %s", batch[0], exc)
+            return
+        retries, self.retries = self.retries, min(self.retries, 3)
+        try:
+            resp = self._request("POST", f"{self.base_url}/result", data={"id": ",".join(batch), "format": "zip"})
+            zf = zipfile.ZipFile(io.BytesIO(resp.content))
+        except (requests.RequestException, zipfile.BadZipFile) as exc:
+            logger.warning("zip batch of %d failed (%s); splitting", len(batch), exc)
+            half = len(batch) // 2
+            yield from self._fetch_batch(batch[:half])
+            yield from self._fetch_batch(batch[half:])
+            return
+        finally:
+            self.retries = retries
+        for name in zf.namelist():
+            if name.endswith(".cif"):
+                yield Path(name).stem, zf.read(name).decode("utf-8", errors="replace")

@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS entries (
     svnrevision TEXT,
     fractional INTEGER,
     has_coordinates INTEGER,
-    has_disorder INTEGER
+    has_disorder INTEGER,
+    natoms_cell REAL    -- atoms in the conventional cell (COD cellformula)
 );
 CREATE TABLE IF NOT EXISTS keys (
     cod_id TEXT,
@@ -185,9 +186,12 @@ class CODIndex:
         n = 0
         with open(csv_path, newline="", encoding="utf-8", errors="replace") as fh:
             reader = csv.DictReader(line for line in fh if not line.startswith("#"))
+            # metadata tables are rebuilt from scratch (schema may have changed);
+            # the CIF and parsed-structure caches are kept.
+            self.db.execute("DROP TABLE IF EXISTS entries")
+            self.db.execute("DROP TABLE IF EXISTS keys")
+            self.db.executescript(SCHEMA)
             with self.db:
-                self.db.execute("DELETE FROM entries")
-                self.db.execute("DELETE FROM keys")
                 for row in reader:
                     n += self._add_metadata_row(row, include_no_coordinates)
                 self.db.execute(
@@ -219,6 +223,7 @@ class CODIndex:
             keys.add(("cs", cs))
         if not keys:
             return 0
+        cell_comp = cod_formula_to_composition(row.get("cellformula"))
 
         def num(x, typ):
             try:
@@ -227,7 +232,7 @@ class CODIndex:
                 return None
 
         self.db.execute(
-            "INSERT OR REPLACE INTO entries VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO entries VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 cod_id,
                 row.get("formula"),
@@ -240,6 +245,7 @@ class CODIndex:
                 int(fractional),
                 int(has_coords),
                 int("has disorder" in flags),
+                cell_comp.num_atoms if cell_comp is not None else None,
             ),
         )
         self.db.executemany("INSERT OR IGNORE INTO keys VALUES (?,?,?)", [(cod_id, k, v) for k, v in keys])
@@ -250,16 +256,32 @@ class CODIndex:
     def n_entries(self) -> int:
         return self.db.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
 
-    def ids_by_reduced_formula(self, reduced_formula: str) -> list[str]:
-        return [r[0] for r in self.db.execute("SELECT cod_id FROM keys WHERE kind='rf' AND value=?", (reduced_formula,))]
-
-    def ids_by_chemsys(self, chemsys: str, disorder_only: bool = False) -> list[str]:
-        sql = "SELECT k.cod_id FROM keys k"
+    def _ids(self, kind: str, value: str, disorder_only: bool, max_cell_atoms: float | None) -> list[str]:
+        sql = "SELECT k.cod_id FROM keys k JOIN entries e USING (cod_id) WHERE k.kind=? AND k.value=?"
+        params: list = [kind, value]
         if disorder_only:
-            sql += " JOIN entries e USING (cod_id) WHERE k.kind='cs' AND k.value=? AND (e.has_disorder=1 OR e.fractional=1)"
-        else:
-            sql += " WHERE k.kind='cs' AND k.value=?"
-        return [r[0] for r in self.db.execute(sql, (chemsys,))]
+            sql += " AND (e.has_disorder=1 OR e.fractional=1)"
+        if max_cell_atoms is not None:
+            sql += " AND (e.natoms_cell IS NULL OR e.natoms_cell <= ?)"
+            params.append(max_cell_atoms)
+        return [r[0] for r in self.db.execute(sql + " ORDER BY k.cod_id", params)]
+
+    def ids_by_reduced_formula(self, reduced_formula: str, max_cell_atoms: float | None = None) -> list[str]:
+        """COD ids whose ``formula`` or ``calcformula`` reduces to ``reduced_formula``.
+
+        ``max_cell_atoms`` drops entries with more atoms in the conventional cell.
+        """
+        return self._ids("rf", reduced_formula, False, max_cell_atoms)
+
+    def ids_by_chemsys(
+        self, chemsys: str, disorder_only: bool = False, max_cell_atoms: float | None = None
+    ) -> list[str]:
+        """COD ids with exactly the elements of ``chemsys`` (e.g. ``"Fe-Li-O"``).
+
+        ``disorder_only`` keeps entries flagged ``has disorder`` by COD or with
+        a fractional formula.
+        """
+        return self._ids("cs", chemsys, disorder_only, max_cell_atoms)
 
     def entry(self, cod_id: str) -> dict | None:
         cur = self.db.execute("SELECT * FROM entries WHERE cod_id=?", (str(cod_id),))
