@@ -147,6 +147,57 @@ def drop_minor_species(structure: Structure, min_occupancy: float) -> Structure:
     return s
 
 
+#: Elements treated as anions when deciding whether a composition is ionic.
+ANION_ELEMENTS = frozenset({"H", "N", "O", "F", "S", "Cl", "Se", "Br", "Te", "I"})
+
+
+def has_anion(composition: Composition) -> bool:
+    return any(el.symbol in ANION_ELEMENTS for el in composition.elements)
+
+
+def volume_per_atom(structure: Structure) -> float:
+    """Volume per atom, counting partial occupancies (not sites)."""
+    n = structure.composition.num_atoms
+    return structure.volume / n if n > 0 else float("nan")
+
+
+def volume_ratio(query: Structure, reference: Structure) -> float:
+    """Density ratio of ``query`` over ``reference``: volume per atom
+    (occupancy-weighted) or, if closer to 1, volume per site.
+
+    StructureMatcher's ``scale=True`` normalizes volumes away, so a match onto a
+    reference with a very different density (a high-pressure phase, a
+    misparsed CIF) is otherwise invisible.  Per atom is right for ordered
+    realizations (atoms = occupancies); per site for relations that fill or
+    empty vacancies (framework density).  The value closer to 1 is returned."""
+    vr = volume_per_atom(reference)
+    per_atom = volume_per_atom(query) / vr if vr > 0 else float("nan")
+    per_site = (query.volume / len(query)) / (reference.volume / len(reference)) if len(reference) else float("nan")
+    return min((per_atom, per_site), key=lambda x: abs(np.log(x)) if x > 0 else np.inf)
+
+
+def is_generic(structure: Structure) -> bool:
+    """Elemental or at most 2 sites per primitive cell (fcc/bcc/hcp, rock salt,
+    CsCl ...): matches onto such references carry little information."""
+    if len(structure.composition.elements) == 1:
+        return True
+    try:
+        return len(structure.get_primitive_structure()) <= 2
+    except Exception:  # pragma: no cover
+        return len(structure) <= 2
+
+
+def minority_fraction(structure: Structure) -> float:
+    """Largest non-majority fraction on any site (vacancy counts as a species);
+    below ~0.1 the structure is a dilute (terminal) solid solution."""
+    worst = 0.0
+    for site in structure:
+        occ = [float(x) for x in site.species.values()]
+        vacancy = max(0.0, 1.0 - sum(occ))
+        worst = max(worst, 1.0 - max([*occ, vacancy]))
+    return worst
+
+
 def _element_set_key(site) -> tuple:
     return tuple(sorted(el.symbol for el in site.species.elements))
 
@@ -259,6 +310,13 @@ class DisorderMatcher:
             composition check below is the stoichiometry guard.
         min_occupancy: species with a smaller site occupancy in a disordered
             structure are ignored (see :func:`drop_minor_species`).
+        min_volume_ratio, max_volume_ratio: allowed range of the query's
+            volume per atom over the reference's (occupancy-weighted); outside
+            it there is no match.
+        family_max_deviation: a ``DISORDERED_FAMILY`` needs every sublattice
+            within this occupancy deviation, and a reference that is not a
+            dilute solid solution (some site with a minority fraction of at
+            least ``dilute_threshold``).
         vacancy_tol: a reference site with total occupancy above
             ``1 - vacancy_tol`` must not be left empty by the query.
         composition_atol, composition_rtol: global composition tolerance
@@ -273,6 +331,10 @@ class DisorderMatcher:
     occupancy_tol: float = 0.2
     vacancy_tol: float = 0.1
     min_occupancy: float = 0.05
+    min_volume_ratio: float = 0.75
+    max_volume_ratio: float = 1.35
+    family_max_deviation: float = 0.5
+    dilute_threshold: float = 0.1
     composition_atol: float = 0.01
     composition_rtol: float = 0.1
     max_supercell: int = 16
@@ -308,6 +370,10 @@ class DisorderMatcher:
         if not set(query.composition.elements) <= set(reference.composition.elements):
             return MatchResult(MatchKind.NONE, details={"reason": "elements"})
 
+        vr = volume_ratio(query, reference)
+        if not self.min_volume_ratio <= vr <= self.max_volume_ratio:
+            return MatchResult(MatchKind.NONE, details={"reason": "volume per atom", "volume_ratio": round(vr, 3)})
+
         q = query.get_primitive_structure()
         r = reference.get_primitive_structure()
         ratio = (q.volume / r.volume) if r.volume > 0 else np.inf
@@ -323,7 +389,11 @@ class DisorderMatcher:
             return MatchResult(MatchKind.NONE, details={"reason": f"matcher error: {exc}"})
         if mapped is None:
             return MatchResult(MatchKind.NONE, details={"reason": "no mapping"})
-        return self._verify(q, mapped)
+        res = self._verify(q, mapped)
+        if res.kind is MatchKind.DISORDERED_FAMILY and minority_fraction(r) < self.dilute_threshold:
+            return MatchResult(MatchKind.NONE, details={"reason": "dilute reference", **res.details})
+        res.details["volume_ratio"] = round(vr, 3)
+        return res
 
     def match_disordered(self, query: Structure, reference: Structure) -> MatchResult:
         """Grade a *disordered* query against a disordered reference.
@@ -337,6 +407,9 @@ class DisorderMatcher:
         """
         query = drop_minor_species(query, self.min_occupancy)
         reference = drop_minor_species(reference, self.min_occupancy)
+        vr = volume_ratio(query, reference)
+        if not self.min_volume_ratio <= vr <= self.max_volume_ratio:
+            return MatchResult(MatchKind.NONE, details={"reason": "volume per atom", "volume_ratio": round(vr, 3)})
         if {el.symbol for el in query.composition.elements} != {el.symbol for el in reference.composition.elements}:
             return MatchResult(MatchKind.NONE, details={"reason": "elements"})
         try:
@@ -349,8 +422,16 @@ class DisorderMatcher:
         comp_ok = fractional_composition_close(
             query.composition, reference.composition, self.composition_atol, self.composition_rtol
         )
-        details = {"global_composition_ok": comp_ok, "reference_composition": reference.composition.formula}
-        return MatchResult(MatchKind.PRISTINE if comp_ok else MatchKind.DISORDERED_FAMILY, details=details)
+        details = {
+            "global_composition_ok": comp_ok,
+            "reference_composition": reference.composition.formula,
+            "volume_ratio": round(vr, 3),
+        }
+        if comp_ok:
+            return MatchResult(MatchKind.PRISTINE, details=details)
+        if minority_fraction(reference) < self.dilute_threshold:
+            return MatchResult(MatchKind.NONE, details={"reason": "dilute reference", **details})
+        return MatchResult(MatchKind.DISORDERED_FAMILY, details=details)
 
     # -- internals ----------------------------------------------------------
 
@@ -393,6 +474,8 @@ class DisorderMatcher:
         }
         if comp_ok and sublattices_ok:
             return MatchResult(MatchKind.DISORDERED_REALIZATION, details=details)
+        if max_dev > self.family_max_deviation + 1e-8:
+            return MatchResult(MatchKind.NONE, details={"reason": "occupancies too far for a family", **details})
         return MatchResult(MatchKind.DISORDERED_FAMILY, details=details)
 
 
@@ -549,13 +632,24 @@ def disorder_similar_elements(structure: Structure, max_dx: float = 1.0, max_dr:
 
 @dataclass
 class SiblingOrderingMatcher:
-    """MatterGen's ordered-vs-ordered route through Hume-Rothery disordering."""
+    """Different ordering of chemically similar elements, same formula.
+
+    MatterGen merges elements by Hume-Rothery-like rules (|dX| <= 1.0,
+    relative radius <= 0.3, transitive cliques), which in practice merges
+    cations with anions or every element of a compound (the audit of the
+    figshare benchmark found 239 of 374 such hits comparing bare atomic
+    packings).  Here the stricter :func:`similarity_groups` are used (ionic
+    rule for compounds with anions, Pettifor rule otherwise); structures in
+    which every element would be merged, or with anions but no oxidation-state
+    guess, are skipped.
+    """
 
     ltol: float = 0.2
     stol: float = 0.3
     angle_tol: float = 5.0
-    max_dx: float = 1.0
-    max_dr: float = 0.3
+    max_dm: float = 6
+    max_dr: float = 0.2
+    max_ionic_dr: float = 0.15
 
     def __post_init__(self):
         self._sm = StructureMatcher(
@@ -569,8 +663,29 @@ class SiblingOrderingMatcher:
             comparator=OrderDisorderElementComparator(),
         )
 
+    def groups(self, composition: Composition) -> list[list[Element]]:
+        """Multi-element similarity groups usable for this composition ([] if none)."""
+        ionic = guess_ionic_radii(composition)
+        if not ionic and has_anion(composition):
+            return []
+        groups = similarity_groups(composition.elements, self.max_dm, self.max_dr, ionic, self.max_ionic_dr)
+        if len(groups) == 1:
+            return []  # everything merged: only the bare packing would be compared
+        return [g for g in groups if len(g) > 1]
+
     def prepare(self, query: Structure) -> Structure | None:
-        return disorder_similar_elements(query, self.max_dx, self.max_dr)
+        groups = self.groups(query.composition)
+        if not groups:
+            return None
+        comp = query.composition
+        s = query.copy()
+        for group in groups:
+            total = sum(comp[el] for el in group)
+            mix = {el: comp[el] / total for el in group}
+            for i, site in enumerate(query):
+                if site.specie in group:
+                    s.replace(i, mix, coords=site.frac_coords)
+        return s
 
     def fit(self, disordered_query: Structure | None, query: Structure, reference: Structure) -> bool:
         if disordered_query is None or query.composition.reduced_formula != reference.composition.reduced_formula:

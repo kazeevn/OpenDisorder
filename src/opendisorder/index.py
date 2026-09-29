@@ -136,10 +136,34 @@ class ParsedEntry:
     error: str | None = None
 
 
+#: CIF tags of incommensurately modulated (superspace) structures; pymatgen reads
+#: only the average structure of those, often with wrong occupancies (e.g. a
+#: composite EuGe2 read as Eu0.5Ge), so they are not used as references.
+SUPERSPACE_TAGS = (
+    "_cell_modulation_dimension",
+    "_space_group_ssg_",
+    "_space_group_symop_ssg_",
+    "_symmetry_ssg_",
+    "_atom_site_displace_fourier",
+    "_atom_site_occ_fourier",
+    "_atom_site_fourier_wave_vector",
+    "_cell_wave_vector_",
+)
+
+
+def is_superspace_cif(cif_text: str) -> bool:
+    lower = cif_text.lower()
+    return any(tag in lower for tag in SUPERSPACE_TAGS)
+
+
 def parse_cif(cod_id: str, cif_text: str, occupancy_tolerance: float = 1.05) -> ParsedEntry:
-    """Parse the first structure of a CIF, recording pymatgen warnings."""
+    """Parse the first structure of a CIF, recording pymatgen warnings.
+
+    Modulated (superspace) CIFs are rejected (see :data:`SUPERSPACE_TAGS`)."""
     from pymatgen.io.cif import CifParser
 
+    if is_superspace_cif(cif_text):
+        return ParsedEntry(cod_id, None, [], "modulated (superspace) structure")
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         try:

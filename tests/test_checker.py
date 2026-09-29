@@ -140,3 +140,15 @@ def test_check_many_survives_worker_crash(index, monkeypatch):
     reports = NoveltyChecker(index).check_many([nacl, csxe, nacl.copy()], processes=2)
     assert reports[0].kind is MatchKind.PRISTINE and reports[2].kind is MatchKind.PRISTINE
     assert reports[1].kind is MatchKind.NONE and "worker process died" in reports[1].errors[0]
+
+
+def test_loose_pristine(index):
+    """A tetragonally distorted NaCl (c/a = 1.25, e.g. an unrelaxed generated
+    structure) fails default tolerances but is recognized at loose ones."""
+    ref = Structure.from_spacegroup("Fm-3m", Lattice.cubic(5.64), ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    a = 5.64 / 1.25 ** (1 / 3)
+    q = Structure(Lattice.tetragonal(a, 1.25 * a), ref.species, ref.frac_coords)
+    rep = NoveltyChecker(index, options=CheckOptions(time_limit=None)).check(q)
+    assert rep.kind is MatchKind.PRISTINE and rep.matches[0].details["tolerance"] == "loose"
+    rep = NoveltyChecker(index, options=CheckOptions(time_limit=None, loose_pristine=False)).check(q)
+    assert rep.kind is not MatchKind.PRISTINE

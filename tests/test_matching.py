@@ -219,3 +219,36 @@ def test_read_only_index(tmp_path):
         assert ro.get_cif("1") == "data_x\n"
         with pytest.raises(Exception):
             ro.add_cif("2", "data_y\n")
+
+
+def test_volume_guard(dm):
+    """A match onto a reference of very different density is rejected."""
+    q = rocksalt_cell(["Li", "Li", "Fe", "Fe"])
+    q.scale_lattice(q.volume * 1.8)
+    res = dm.match(q, disordered_rocksalt({"Li": 0.5, "Fe": 0.5}))
+    assert res.kind is MatchKind.NONE and res.details["reason"] == "volume per atom"
+
+
+def test_dilute_reference_gives_no_family(dm):
+    """An ordered 50:50 compound is not a 'family' member of a dilute (terminal)
+    solid solution such as (Li0.95Fe0.05)O."""
+    res = dm.match(rocksalt_cell(["Li", "Li", "Fe", "Fe"]), disordered_rocksalt({"Li": 0.95, "Fe": 0.05}))
+    assert res.kind is MatchKind.NONE
+
+
+def test_sibling_groups():
+    from pymatgen.core import Composition, Element
+
+    sm = SiblingOrderingMatcher()
+    assert [{e.symbol for e in g} for g in sm.groups(Composition("TbHo2Tm9Co4"))] == [{"Tb", "Ho", "Tm"}]
+    assert sm.groups(Composition("NaCa3H4")) == []  # anions but no charge-balanced guess
+    assert sm.groups(Composition("NaCl")) == []
+    assert all(Element("Cl") not in g for g in sm.groups(Composition("NaKCl2")))
+
+
+def test_superspace_cif_rejected():
+    from opendisorder.index import is_superspace_cif, parse_cif
+
+    cif = "data_x\n_cell_modulation_dimension 1\n_cell_length_a 4\n"
+    assert is_superspace_cif(cif)
+    assert parse_cif("1", cif).error == "modulated (superspace) structure"

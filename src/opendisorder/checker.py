@@ -25,7 +25,10 @@ from .matching import (
     clean_structure,
     collapse_elements,
     guess_ionic_radii,
+    has_anion,
+    is_generic,
     similarity_groups,
+    volume_ratio,
 )
 
 logger = logging.getLogger(__name__)
@@ -143,6 +146,12 @@ class CheckOptions:
     within 15% as similar (e.g. Zr4+/Sn4+ in BaZr0.5Sn0.5O3)."""
     substitution_max_ionic_radius: float = 0.15
     max_substitution_chemsys: int = 64
+    loose_pristine: bool = True
+    """If no same-formula reference matches at default tolerances, retry at
+    ``loose_tolerances`` (ltol, stol, angle_tol) with a density guard;
+    unrelaxed generated structures are often distorted versions of known
+    ones."""
+    loose_tolerances: tuple[float, float, float] = (0.3, 0.5, 10.0)
 
 
 @dataclass
@@ -189,6 +198,8 @@ class NoveltyChecker:
         self.disorder = disorder or DisorderMatcher()
         self.sibling = sibling or SiblingOrderingMatcher()
         self.options = options or CheckOptions()
+        ltol, stol, angle_tol = self.options.loose_tolerances
+        self._loose = PristineMatcher(ltol=ltol, stol=stol, angle_tol=angle_tol)
 
     # ------------------------------------------------------------------ candidates
 
@@ -226,6 +237,11 @@ class NoveltyChecker:
         )
         if all(len(g) == 1 for g in groups):
             return groups, []
+        if not ionic and has_anion(structure.composition):
+            # no charge-balanced oxidation states (often a sign of an unphysical
+            # generated composition): the Pettifor fallback would merge
+            # heterovalent ions such as Na+/Ca2+, so do not group at all
+            return [[el] for el in structure.composition.elements], []
         own = chemsys(structure)
         target = collapse_elements(structure, groups).composition.reduced_formula
         choices = [
@@ -308,16 +324,30 @@ class NoveltyChecker:
         unmatched_ordered = []
         for cid in same_formula:
             if self._compare(report, self.pristine.fit, q, refs[cid]):
-                report.matches.append(MatchResult(MatchKind.PRISTINE, cid))
+                report.matches.append(MatchResult(MatchKind.PRISTINE, cid, {"tolerance": "default"}))
                 if not opts.exhaustive:
                     break
             elif q.is_ordered:
                 unmatched_ordered.append(cid)
+        # unrelaxed / distorted versions of a known structure: retry at loose
+        # tolerances, guarded by density
+        if opts.loose_pristine and unmatched_ordered and (opts.exhaustive or not report.matches):
+            for cid in list(unmatched_ordered):
+                vr = volume_ratio(q, refs[cid])
+                if not self.disorder.min_volume_ratio <= vr <= self.disorder.max_volume_ratio:
+                    continue
+                if self._compare(report, self._loose.fit, q, refs[cid]):
+                    report.matches.append(
+                        MatchResult(MatchKind.PRISTINE, cid, {"tolerance": "loose", "volume_ratio": round(vr, 3)})
+                    )
+                    unmatched_ordered.remove(cid)
+                    if not opts.exhaustive:
+                        break
         if report.matches and not opts.exhaustive:
-            return self._finish(report)
+            return self._finish(report, refs)
 
         if not opts.check_disorder:
-            return self._finish(report)
+            return self._finish(report, refs)
 
         if not q.is_ordered:
             # disordered query: same disordered phase with other occupancies / family
@@ -331,7 +361,7 @@ class NoveltyChecker:
                     report.matches.append(res)
                     if res.kind is MatchKind.PRISTINE and not opts.exhaustive:
                         break
-            return self._finish(report)
+            return self._finish(report, refs)
 
         # ---- layer 2a: ordered realization of a disordered entry
         # same-formula disordered entries are layer-2 references too
@@ -350,7 +380,7 @@ class NoveltyChecker:
                     if not opts.exhaustive:
                         break
         if found_realization and not opts.exhaustive:
-            return self._finish(report)
+            return self._finish(report, refs)
 
         # ---- layer 2c: ordering of similar elements on a known structure with fewer elements
         subst = [cid for cid in cand.substitution if cid in refs]
@@ -374,12 +404,15 @@ class NoveltyChecker:
                         report.matches.append(MatchResult(MatchKind.SIBLING_ORDERING, cid))
                         if not opts.exhaustive:
                             break
-        return self._finish(report)
+        return self._finish(report, refs)
 
     def _substitution_match(self, qc: Structure, rc: Structure) -> MatchResult | None:
         if rc.is_ordered:
+            vr = volume_ratio(qc, rc)
+            if not self.disorder.min_volume_ratio <= vr <= self.disorder.max_volume_ratio:
+                return None
             if self.pristine.fit(qc, rc):
-                return MatchResult(MatchKind.SUBSTITUTIONAL_ORDERING, details={"via": "pristine"})
+                return MatchResult(MatchKind.SUBSTITUTIONAL_ORDERING, details={"via": "pristine", "volume_ratio": round(vr, 3)})
             return None
         res = self.disorder.match(qc, rc)
         if res.kind is MatchKind.DISORDERED_REALIZATION:
@@ -387,7 +420,12 @@ class NoveltyChecker:
         return None
 
     @staticmethod
-    def _finish(report: NoveltyReport) -> NoveltyReport:
+    def _finish(report: NoveltyReport, refs: dict[str, Structure] | None = None) -> NoveltyReport:
+        # matches onto elemental or <=2-site references (fcc/bcc/hcp, rock
+        # salt ...) carry little information; flag them so they can be tiered
+        for m in report.matches:
+            if refs and m.reference_id in refs and m.kind is not MatchKind.PRISTINE:
+                m.details["generic_reference"] = is_generic(refs[m.reference_id])
         best = report.best()
         report.kind = best.kind if best else MatchKind.NONE
         report.matches.sort(key=lambda m: MATCH_STRENGTH[m.kind])
