@@ -92,6 +92,28 @@ theoretical even though its source was an ICSD entry. This is exactly the situat
 library is built to detect. MP-20-trained generative models learn these orderings and produce
 more of them.
 
+**MP flags every ordering of a disordered ICSD entry as theoretical.** MP's task tags record
+how an entry was made; they were read through the MP API, and no ICSD ids were used.
+
+| MP task tag | materials | in the 2022 release | `theoretical` | ICSD link |
+|---|---|---|---|---|
+| `new_ordered_icsd_2017` (ordered ICSD structures) | 43,790 | 17,387 | 12% | 93% |
+| `new_disordered_icsd_2017` (MP orderings of disordered ICSD structures) | 14,173 | 14,000 | **100%** | **0%** |
+| `ordering of disordered crystal` / `Ordering of Disordered Crystal` | 1,355 | 709 | ~100% | ~0% |
+| `solid solution oxide` (enumerated rock-salt solid solutions) | 875 | 152 | 100% | 0% |
+
+These tags give an independent check of `opendisorder`. On the MP-20 test split, the grades
+against COD by MP origin are:
+
+| MP origin | n | pristine | realization | substitutional | family | none |
+|---|---|---|---|---|---|---|
+| ordered ICSD | 1,003 | 15.2% | 1.7% | 1.1% | 1.6% | 79.9% |
+| ordering of a disordered ICSD entry | 1,385 | **0.5%** | **26.4%** | **19.4%** | 5.3% | 48.1% |
+| other / untagged | 6,658 | 26.5% | 3.1% | 5.6% | 2.2% | 62.1% |
+
+MP's orderings of disordered phases almost never match COD as `pristine`. They land in the
+disorder grades instead, and the "none" share reflects COD's coverage.
+
 | MP flag | n | known % | any match % | no same-formula COD entry % |
 |---|---|---|---|---|
 | experimental (`theoretical=False`) | 3,929 | 47.1 | 49.1 | 47.1 |
