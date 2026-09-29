@@ -1,0 +1,78 @@
+import csv
+import warnings
+
+import pytest
+from pymatgen.core import Lattice, Structure
+
+from opendisorder import CheckOptions, CODIndex, MatchKind, NoveltyChecker
+
+warnings.filterwarnings("ignore")
+
+FIELDS = ["file", "formula", "calcformula", "sgNumber", "vol", "flags", "method", "svnrevision"]
+
+
+def _cif(structure):
+    from pymatgen.io.cif import CifWriter
+
+    return str(CifWriter(structure))
+
+
+@pytest.fixture()
+def index(tmp_path):
+    nacl = Structure.from_spacegroup("Fm-3m", Lattice.cubic(5.64), ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    lifeo2 = Structure.from_spacegroup(
+        "Fm-3m", Lattice.cubic(4.16), [{"Li": 0.5, "Fe": 0.5}, "O"], [[0, 0, 0], [0.5, 0, 0]]
+    )
+    rows = [
+        {"file": "1000001", "formula": "- Cl Na -", "calcformula": "- Cl Na -", "flags": "has coordinates"},
+        {"file": "1000002", "formula": "- Fe0.5 Li0.5 O -", "calcformula": "- Fe0.5 Li0.5 O -",
+         "flags": "has coordinates,has disorder"},
+        {"file": "1000003", "formula": "- C H4 -", "calcformula": "- C H4 -", "flags": ""},
+    ]
+    csv_path = tmp_path / "meta.csv"
+    with open(csv_path, "w", newline="") as fh:
+        fh.write("# comment line\n")
+        w = csv.DictWriter(fh, FIELDS)
+        w.writeheader()
+        for r in rows:
+            w.writerow(r)
+    idx = CODIndex(tmp_path / "cod.sqlite")
+    assert idx.build_from_metadata(csv_path) == 2
+    idx.add_cif("1000001", _cif(nacl))
+    idx.add_cif("1000002", _cif(lifeo2))
+    yield idx
+    idx.close()
+
+
+def test_index_lookup(index):
+    assert index.ids_by_reduced_formula("NaCl") == ["1000001"]
+    assert index.ids_by_chemsys("Fe-Li-O") == ["1000002"]
+    assert index.ids_by_chemsys("Fe-Li-O", disorder_only=True) == ["1000002"]
+    assert not index.get_structure("1000002").is_ordered
+
+
+def test_checker_layers(index):
+    checker = NoveltyChecker(index, options=CheckOptions(time_limit=None))
+    nacl = Structure.from_spacegroup("Fm-3m", Lattice.cubic(5.5), ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    rep = checker.check(nacl)
+    assert rep.kind is MatchKind.PRISTINE and rep.cod_ids == ["1000001"] and not rep.is_novel
+
+    cat = [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]
+    an = [[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5], [0.5, 0.5, 0.5]]
+    ordered = Structure(Lattice.orthorhombic(4.2, 4.2, 4.1), ["Li", "Li", "Fe", "Fe"] + ["O"] * 4, cat + an)
+    rep = checker.check(ordered)
+    assert rep.kind is MatchKind.DISORDERED_REALIZATION and rep.cod_ids == ["1000002"]
+
+    novel = Structure.from_spacegroup("Pm-3m", Lattice.cubic(4.0), ["Cs", "Xe"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    rep = checker.check(novel)
+    assert rep.kind is MatchKind.NONE and rep.is_novel
+
+    reports = checker.check_many([nacl, ordered, novel], processes=1)
+    assert [r.kind for r in reports] == [MatchKind.PRISTINE, MatchKind.DISORDERED_REALIZATION, MatchKind.NONE]
+
+
+def test_check_many_parallel(index):
+    checker = NoveltyChecker(index)
+    nacl = Structure.from_spacegroup("Fm-3m", Lattice.cubic(5.5), ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    reports = checker.check_many([nacl, nacl.copy()], processes=2)
+    assert all(r.kind is MatchKind.PRISTINE for r in reports)
