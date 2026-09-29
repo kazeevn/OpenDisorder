@@ -145,6 +145,78 @@ class CODClient:
                 yield Path(name).stem, zf.read(name).decode("utf-8", errors="replace")
 
 
+class ResumableHTTPReader(io.RawIOBase):
+    """Read-only byte stream over HTTP that reconnects with ``Range`` requests
+    after a dropped connection, so a long download (e.g. the 17 GB COD
+    archive) survives network hiccups without restarting."""
+
+    def __init__(self, url: str, session: requests.Session | None = None, retries: int = 20, chunk: int = 1 << 20):
+        self.url = url
+        self.session = session or requests.Session()
+        self.session.headers.setdefault("User-Agent", USER_AGENT)
+        self.retries = retries
+        self.chunk = chunk
+        self.pos = 0
+        self.size: int | None = None
+        self._resp = None
+        self._iter = None
+        self._buf = b""
+
+    def readable(self) -> bool:
+        return True
+
+    def _open(self):
+        headers = {"Range": f"bytes={self.pos}-"} if self.pos else {}
+        resp = self.session.get(self.url, stream=True, timeout=600, headers=headers)
+        resp.raise_for_status()
+        if self.pos and resp.status_code != 206:
+            resp.close()
+            raise OSError("server does not support range requests; cannot resume")
+        if self.size is None:
+            self.size = int(resp.headers.get("content-length", 0)) or None
+        self._resp = resp
+        self._iter = resp.raw.stream(self.chunk, decode_content=False)
+
+    def readinto(self, b) -> int:
+        if self._buf:
+            n = min(len(b), len(self._buf))
+            b[:n] = self._buf[:n]
+            self._buf = self._buf[n:]
+            return n
+        delay = 2.0
+        for attempt in range(self.retries + 1):
+            try:
+                if self._iter is None:
+                    self._open()
+                data = next(self._iter, b"")
+                if not data:
+                    if self.size is not None and self.pos < self.size:
+                        raise OSError(f"stream ended early at byte {self.pos} of {self.size}")
+                    return 0
+                self.pos += len(data)
+                n = min(len(b), len(data))
+                b[:n] = data[:n]
+                self._buf = data[n:]
+                return n
+            except Exception as exc:  # requests/urllib3 errors, truncated streams
+                if attempt == self.retries or "range requests" in str(exc):
+                    raise
+                logger.warning("download interrupted at byte %d (%s); resuming in %.0fs", self.pos, exc, delay)
+                self.close_response()
+                time.sleep(delay)
+                delay = min(delay * 2, 120)
+        return 0
+
+    def close_response(self):
+        if self._resp is not None:
+            self._resp.close()
+        self._resp = self._iter = None
+
+    def close(self):
+        self.close_response()
+        super().close()
+
+
 def iter_archive_cifs(source: str | Path = COD_ARCHIVE_URL, session: requests.Session | None = None) -> Iterator[tuple[str, str]]:
     """Stream ``(cod_id, cif_text)`` from a COD CIF archive without storing it.
 
@@ -154,12 +226,8 @@ def iter_archive_cifs(source: str | Path = COD_ARCHIVE_URL, session: requests.Se
     """
     source = str(source)
     if source.startswith(("http://", "https://")):
-        session = session or requests.Session()
-        session.headers.setdefault("User-Agent", USER_AGENT)
-        resp = session.get(source, stream=True, timeout=600)
-        resp.raise_for_status()
-        resp.raw.decode_content = True
-        fileobj, close = resp.raw, resp.close
+        reader = ResumableHTTPReader(source, session=session)
+        fileobj, close = io.BufferedReader(reader, buffer_size=1 << 20), reader.close
     else:
         fileobj = open(source, "rb")
         close = fileobj.close
