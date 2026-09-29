@@ -1,0 +1,13 @@
+# Round-trip benchmark: extra dependencies (kept out of the library's pyproject).
+# The library itself: pip install -e /path/to/OpenDisorder
+ase>=3.23            # LGPL-2.1-or-later; FrechetCellFilter needs >= 3.23
+sqsgenerator>=0.5    # MIT; pip wheels (manylinux, cp39-cp313); "sqs" ordering method
+pandas               # BSD-3; summaries
+tabulate             # MIT; markdown tables in summary.md
+
+# enumlib (MIT) for the "enum"/"enum_ewald" methods is a Fortran program, not on PyPI:
+#   conda install -c conda-forge enumlib        (provides enum.x, makestr.x, polya.x)
+# or build from https://github.com/msg-byu/enumlib; put the executables on PATH.
+#
+# MLIPs: see requirements-mlip.txt (install one per environment; they pin different torch
+# versions).

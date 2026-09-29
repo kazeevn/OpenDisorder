@@ -1,0 +1,21 @@
+# One MLIP per virtual environment is safest: they pin different torch / e3nn versions.
+# Install torch first for your CUDA version (https://pytorch.org), then ONE of:
+#
+# backend    package                     code licence        weights licence (default model)
+# mace       mace-torch                  MIT                 MIT (medium-mpa-0, MACE-MP-0*)
+# orb        orb-models                  Apache-2.0          Apache-2.0 (orb_v3_conservative_inf_mpa)
+# mattersim  mattersim                   MIT                 MIT (MatterSim-v1.0.0-5M)
+# chgnet     chgnet                      BSD-3-Clause-LBNL   same (0.3.0)
+# sevennet   sevenn                      MIT (>=0.10; GPL-3 before)  per checkpoint (7net-0)
+# fairchem   fairchem-core               MIT                 FAIR Chemistry licence + acceptable-use
+#                                                            policy, gated on Hugging Face (UMA/eSEN)
+#
+# Weights trained on OMat24 (e.g. *-omat*, UMA, eSEN-OAM) inherit the OMat24 dataset/model
+# terms (CC-BY-4.0 data; model weights under Meta's research licence). Prefer the MPtrj/sAlex
+# (MPA) variants for a permissive-only pipeline.
+mace-torch>=0.3.13
+# orb-models>=0.5
+# mattersim>=1.1
+# chgnet>=0.4
+# sevenn>=0.11
+# fairchem-core>=2.3
