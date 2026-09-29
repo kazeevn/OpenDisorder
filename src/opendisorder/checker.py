@@ -498,6 +498,7 @@ class NoveltyChecker:
             "disorder": asdict(self.disorder),
             "sibling": asdict(self.sibling),
             "options": asdict(self.options),
+            "index_read_only": self.index.read_only,
         }
 
     def _check_group(self, items: list[tuple[int, Structure]]) -> list[tuple[int, NoveltyReport]]:
@@ -543,7 +544,7 @@ def _check_group_job(job) -> list[tuple[int, NoveltyReport]]:
     warnings.filterwarnings("ignore")
     db_path, config, items = job[:3]
     _limit_memory(config["options"].get("memory_limit_gb"))
-    index = CODIndex(db_path)
+    index = CODIndex(db_path, read_only=config.get("index_read_only", False))
     try:
         checker = NoveltyChecker(
             index,

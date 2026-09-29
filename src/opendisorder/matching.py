@@ -6,7 +6,7 @@ Two kinds of match are implemented:
   structure (same reduced formula, pymatgen :class:`StructureMatcher` fit).
 * **Disorder match** -- the (ordered) query is an ordered realization, i.e. a
   "coloring" / ordered approximant, of a reference that has partial
-  occupancies.  Following Zeni et al. (MatterGen, Nature 2025, SI D.3) the
+  occupancies.  Following Zeni et al. (MatterGen, Nature 2025, SI D.4) the
   screen is a :class:`StructureMatcher` with ``attempt_supercell``,
   ``allow_subset`` and :class:`OrderDisorderElementComparator`.  Because that
   screen alone produces false positives (it lets a whole sublattice go
@@ -126,6 +126,27 @@ def fractional_composition_close(c1: Composition, c2: Composition, atol: float =
     return True
 
 
+def drop_minor_species(structure: Structure, min_occupancy: float) -> Structure:
+    """Remove species whose occupancy on a site is below ``min_occupancy``
+    (sites left with nothing are removed).  Tiny occupancies -- trace dopants,
+    refinement artefacts such as 0.75% Ti on an otherwise empty spinel site --
+    cannot be realized by any small ordered supercell and would otherwise
+    break matches."""
+    if min_occupancy <= 0 or structure.is_ordered:
+        return structure
+    s = structure.copy()
+    remove = []
+    for i, site in enumerate(s):
+        kept = {sp: occ for sp, occ in site.species.items() if occ >= min_occupancy}
+        if not kept:
+            remove.append(i)
+        elif len(kept) != len(site.species):
+            s.replace(i, kept, coords=site.frac_coords)
+    if remove:
+        s.remove_sites(remove)
+    return s
+
+
 def _element_set_key(site) -> tuple:
     return tuple(sorted(el.symbol for el in site.species.elements))
 
@@ -236,6 +257,8 @@ class DisorderMatcher:
             a small supercell can realize (multiples of 1/k on a k-site
             sublattice) and redistribution between sublattices; the global
             composition check below is the stoichiometry guard.
+        min_occupancy: species with a smaller site occupancy in a disordered
+            structure are ignored (see :func:`drop_minor_species`).
         vacancy_tol: a reference site with total occupancy above
             ``1 - vacancy_tol`` must not be left empty by the query.
         composition_atol, composition_rtol: global composition tolerance
@@ -249,6 +272,7 @@ class DisorderMatcher:
     angle_tol: float = 5.0
     occupancy_tol: float = 0.2
     vacancy_tol: float = 0.1
+    min_occupancy: float = 0.05
     composition_atol: float = 0.01
     composition_rtol: float = 0.1
     max_supercell: int = 16
@@ -280,6 +304,7 @@ class DisorderMatcher:
 
     def match(self, query: Structure, reference: Structure) -> MatchResult:
         """Grade how ``query`` (ordered) relates to ``reference`` (disordered)."""
+        reference = drop_minor_species(reference, self.min_occupancy)
         if not set(query.composition.elements) <= set(reference.composition.elements):
             return MatchResult(MatchKind.NONE, details={"reason": "elements"})
 
@@ -310,6 +335,8 @@ class DisorderMatcher:
         differently); otherwise ``DISORDERED_FAMILY`` (e.g. Ta1/3Cr2/3O2 vs.
         Ta1/2Cr1/2O2).
         """
+        query = drop_minor_species(query, self.min_occupancy)
+        reference = drop_minor_species(reference, self.min_occupancy)
         if {el.symbol for el in query.composition.elements} != {el.symbol for el in reference.composition.elements}:
             return MatchResult(MatchKind.NONE, details={"reason": "elements"})
         try:

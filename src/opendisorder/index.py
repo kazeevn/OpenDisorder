@@ -17,7 +17,6 @@ each CIF is downloaded and parsed at most once.
 from __future__ import annotations
 
 import csv
-import io
 import json
 import logging
 import sqlite3
@@ -144,7 +143,7 @@ def parse_cif(cod_id: str, cif_text: str, occupancy_tolerance: float = 1.05) -> 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         try:
-            parser = CifParser(io.StringIO(cif_text), occupancy_tolerance=occupancy_tolerance)
+            parser = CifParser.from_str(cif_text, occupancy_tolerance=occupancy_tolerance)
             structures = parser.parse_structures(primitive=False, on_error="ignore")
         except Exception as exc:
             return ParsedEntry(cod_id, None, [str(w.message) for w in caught], f"{type(exc).__name__}: {exc}")
@@ -176,6 +175,10 @@ def _unpack(blob: bytes):
 class CODIndex:
     """SQLite-backed COD index with lazy CIF download and structure caching.
 
+    ``read_only=True`` opens an existing index without ever writing to it
+    (safe to share between processes and jobs); missing CIFs are not
+    downloaded and structures that are not cached are parsed in memory.
+
     Args:
         path: SQLite database file.
         client: :class:`CODClient` used to download CIFs (``None`` = offline).
@@ -194,6 +197,7 @@ class CODIndex:
         cif_dir: str | Path | None = None,
         max_sites: int = 500,
         occupancy_tolerance: float = 1.05,
+        read_only: bool = False,
     ):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -201,9 +205,16 @@ class CODIndex:
         self.cif_dir = Path(cif_dir) if cif_dir else None
         self.max_sites = max_sites
         self.occupancy_tolerance = occupancy_tolerance
-        self.db = sqlite3.connect(self.path)
-        self.db.executescript(SCHEMA)
-        self.db.execute("PRAGMA journal_mode=WAL")
+        self.read_only = read_only
+        if read_only:
+            # shared index: nothing is downloaded, parsed-and-cached or written;
+            # CIFs without a cached structure are parsed in memory
+            self.db = sqlite3.connect(f"file:{self.path.resolve()}?mode=ro", uri=True)
+            self.client = None
+        else:
+            self.db = sqlite3.connect(self.path)
+            self.db.executescript(SCHEMA)
+            self.db.execute("PRAGMA journal_mode=WAL")
 
     def close(self):
         self.db.close()
@@ -466,6 +477,8 @@ class CODIndex:
 
     def prepare(self, cod_ids: Iterable[str], processes: int = 1):
         """Download and parse everything needed for ``cod_ids``."""
+        if self.read_only:
+            return
         ids = list(cod_ids)
         self.fetch_cifs(ids)
         self.parse_missing(ids, processes=processes)
@@ -481,6 +494,12 @@ class CODIndex:
     def get_structure(self, cod_id: str, fetch: bool = True) -> Structure | None:
         cid = str(cod_id)
         row = self.db.execute("SELECT ok, data FROM structures WHERE cod_id=?", (cid,)).fetchone()
+        if row is None and self.read_only:
+            text = self.get_cif(cid)
+            if text is None:
+                return None
+            s = parse_cif(cid, text, self.occupancy_tolerance).structure
+            return s if s is not None and len(s) <= self.max_sites else None
         if row is None and fetch:
             self.prepare([cid])
             row = self.db.execute("SELECT ok, data FROM structures WHERE cod_id=?", (cid,)).fetchone()

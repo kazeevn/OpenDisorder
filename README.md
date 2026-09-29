@@ -33,7 +33,7 @@ Recent critiques of generative and high-throughput materials discovery pointed o
 - Cheetham & Seshadri, *Chem. Mater.* 36, 3490 (2024), on GNoME
 - Juelsholt, *Mater. Horiz.* (2026), on MatterGen's TaCr₂O₆
 
-The only operational definition we found is MatterGen's (Zeni et al., *Nature* 2025, SI D.3). An
+The only operational definition we found is MatterGen's (Zeni et al., *Nature* 2025, SI D.4). An
 ordered structure matches a disordered reference if two things hold:
 
 - it is a supercell of the reference framework and each of its sites carries one of the elements

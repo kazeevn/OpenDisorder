@@ -194,3 +194,28 @@ def test_majority_ordering_of_antisite_disorder():
     res = dm.match(rocksalt_cell(["Li", "Li", "Mg", "Mg"]), ref)
     assert res.details["max_sublattice_occupancy_deviation"] > dm.occupancy_tol
     assert res.kind is MatchKind.DISORDERED_REALIZATION and res.details["idealized_sublattices"] == 1
+
+
+def test_minor_occupancy_ignored(dm):
+    """A trace occupancy (0.75% Ti on an otherwise empty site) must not break a match."""
+    from opendisorder.matching import drop_minor_species
+
+    trace = rocksalt_cell([{"Li": 0.5, "Fe": 0.5}] * 4)
+    trace.append({"Ti": 0.0075}, [0.25, 0.25, 0.25])  # tetrahedral interstitial
+    cleaned = drop_minor_species(trace, 0.05)
+    assert len(cleaned) == 8 and "Ti" not in cleaned.composition
+    res = dm.match(rocksalt_cell(["Li", "Li", "Fe", "Fe"]), trace)
+    assert res.kind is MatchKind.DISORDERED_REALIZATION
+
+
+def test_read_only_index(tmp_path):
+    from opendisorder import CODIndex
+
+    path = tmp_path / "cod.sqlite"
+    with CODIndex(path) as idx:
+        idx.add_cif("1", "data_x\n")
+        idx.db.commit()
+    with CODIndex(path, read_only=True) as ro:
+        assert ro.get_cif("1") == "data_x\n"
+        with pytest.raises(Exception):
+            ro.add_cif("2", "data_y\n")
