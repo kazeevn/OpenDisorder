@@ -1,0 +1,43 @@
+# Reconstructed disordered parent (hypothesis, NOT an observed structure) for Dy4Tc3B8Ru
+# Query: GNoME_7c5484aa4a_B8Dy4Ru1Tc3.cif (Cheetham&Seshadri2024); reconstruction: similar groups=[["Ru", "Tc"]] vac=null symprec=0.05
+# Grade PLAUSIBLE: similar parent Pnma (Dy4Tc3B8Ru); LeMat: 0 other ordering(s) at Q's composition, 0 ordering(s) at other compositions, 3 end-member(s); consistent with paper's phase (space group+framework of named phase in LeMat); 3 collapsed sibling(s)
+# Supporting LeMat-Bulk entries (orderings / end members) (LeMaterial/Entalpic, CC-BY-4.0; derived from
+# Materials Project (CC-BY-4.0), Alexandria (CC-BY-4.0) and OQMD (CC-BY-4.0)): agm005695270
+# Derived data, modified (orbit-averaged occupancies); redistribute under CC-BY-4.0 with attribution.
+# generated using pymatgen
+data_Dy4Tc3B8Ru
+_symmetry_space_group_name_H-M   Pnma
+_cell_length_a   5.94417275
+_cell_length_b   5.29333700
+_cell_length_c   6.42952992
+_cell_angle_alpha   90.00000000
+_cell_angle_beta   90.00000000
+_cell_angle_gamma   90.00000000
+_symmetry_Int_Tables_number   62
+_chemical_formula_structural   Dy4Tc3B8Ru
+_chemical_formula_sum   'Dy4 Tc3 B8 Ru1'
+_cell_volume   202.30200558
+_cell_formula_units_Z   1
+loop_
+ _symmetry_equiv_pos_site_id
+ _symmetry_equiv_pos_as_xyz
+  1  'x, y, z'
+  2  '-x, -y, -z'
+  3  '-x+1/2, -y, z+1/2'
+  4  'x+1/2, y, -z+1/2'
+  5  'x+1/2, -y+1/2, -z+1/2'
+  6  '-x+1/2, y+1/2, z+1/2'
+  7  '-x, y+1/2, -z'
+  8  'x, -y+1/2, z'
+loop_
+ _atom_site_type_symbol
+ _atom_site_label
+ _atom_site_symmetry_multiplicity
+ _atom_site_fract_x
+ _atom_site_fract_y
+ _atom_site_fract_z
+ _atom_site_occupancy
+  Dy  Dy0  4  0.01373100  0.25000000  0.16076050  1.0
+  Tc  Tc1  4  0.18222000  0.25000000  0.68548050  0.75
+  Ru  Ru2  4  0.18222000  0.25000000  0.68548050  0.25
+  B  B3  8  0.12872700  0.57980600  0.46268550  1.0

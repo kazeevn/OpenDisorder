@@ -1,0 +1,49 @@
+# Reconstructed disordered parent (hypothesis, NOT an observed structure) for K4MgFe3(PO4)5
+# Query: MP_mp-532755_Fe3K4Mg1O20P5.cif (Leeman2024); reconstruction: pair groups=[["Fe", "Mg"]] vac=null symprec=0.3
+# Grade PLAUSIBLE: pair parent P-42_1c (K4MgFe3(PO4)5); LeMat: 0 other ordering(s) at Q's composition, 0 ordering(s) at other compositions, 2 end-member(s); consistent with paper's phase (space group); Q itself in LeMat
+# Supporting LeMat-Bulk entries (orderings / end members) (LeMaterial/Entalpic, CC-BY-4.0; derived from
+# Materials Project (CC-BY-4.0), Alexandria (CC-BY-4.0) and OQMD (CC-BY-4.0)): mp-1200063, oqmd-9910391
+# Derived data, modified (orbit-averaged occupancies); redistribute under CC-BY-4.0 with attribution.
+# generated using pymatgen
+data_K4MgFe3(PO4)5
+_symmetry_space_group_name_H-M   P-42_1c
+_cell_length_a   9.68265515
+_cell_length_b   9.68265515
+_cell_length_c   9.52064590
+_cell_angle_alpha   90.00000000
+_cell_angle_beta   90.00000000
+_cell_angle_gamma   90.00000000
+_symmetry_Int_Tables_number   114
+_chemical_formula_structural   K4MgFe3(PO4)5
+_chemical_formula_sum   'K8 Mg2 Fe6 P10 O40'
+_cell_volume   892.59683396
+_cell_formula_units_Z   2
+loop_
+ _symmetry_equiv_pos_site_id
+ _symmetry_equiv_pos_as_xyz
+  1  'x, y, z'
+  2  'y, -x, -z'
+  3  '-x, -y, z'
+  4  '-y, x, -z'
+  5  'x+1/2, -y+1/2, -z+1/2'
+  6  'y+1/2, x+1/2, z+1/2'
+  7  '-x+1/2, y+1/2, -z+1/2'
+  8  '-y+1/2, -x+1/2, z+1/2'
+loop_
+ _atom_site_type_symbol
+ _atom_site_label
+ _atom_site_symmetry_multiplicity
+ _atom_site_fract_x
+ _atom_site_fract_y
+ _atom_site_fract_z
+ _atom_site_occupancy
+  K  K0  8  0.06884800  0.66893157  0.45758266  1.0
+  Mg  Mg1  8  0.07422105  0.19962451  0.79326438  0.25
+  Fe  Fe2  8  0.07422105  0.19962451  0.79326438  0.75
+  P  P3  8  0.08536170  0.24583288  0.12851900  1.0
+  P  P4  2  0.00000000  0.00000000  0.50000000  1.0
+  O  O5  8  0.05537187  0.11646573  0.59132039  1.0
+  O  O6  8  0.06759269  0.77949501  0.16931531  1.0
+  O  O7  8  0.08614080  0.27466141  0.98118567  1.0
+  O  O8  8  0.12145956  0.36997639  0.70843600  1.0
+  O  O9  8  0.12487556  0.82553308  0.83250992  1.0

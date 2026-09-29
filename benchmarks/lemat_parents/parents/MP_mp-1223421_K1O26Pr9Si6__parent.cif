@@ -1,0 +1,51 @@
+# Reconstructed disordered parent (hypothesis, NOT an observed structure) for KPr9(Si3O13)2
+# Query: MP_mp-1223421_K1O26Pr9Si6.cif (Leeman2024); reconstruction: pair groups=[["K", "Pr"]] vac=null symprec=0.5
+# Grade PLAUSIBLE: pair parent P6_3/m (KPr9(Si3O13)2); LeMat: 0 other ordering(s) at Q's composition, 0 ordering(s) at other compositions, 1 end-member(s); consistent with paper's phase (space group); Q itself in LeMat
+# Supporting LeMat-Bulk entries (orderings / end members) (LeMaterial/Entalpic, CC-BY-4.0; derived from
+# Materials Project (CC-BY-4.0), Alexandria (CC-BY-4.0) and OQMD (CC-BY-4.0)): mp-1209689
+# Derived data, modified (orbit-averaged occupancies); redistribute under CC-BY-4.0 with attribution.
+# generated using pymatgen
+data_KPr9(Si3O13)2
+_symmetry_space_group_name_H-M   P6_3/m
+_cell_length_a   9.71719103
+_cell_length_b   9.71719103
+_cell_length_c   7.21729000
+_cell_angle_alpha   90.00000000
+_cell_angle_beta   90.00000000
+_cell_angle_gamma   120.00000000
+_symmetry_Int_Tables_number   176
+_chemical_formula_structural   KPr9(Si3O13)2
+_chemical_formula_sum   'K1 Pr9 Si6 O26'
+_cell_volume   590.18242027
+_cell_formula_units_Z   1
+loop_
+ _symmetry_equiv_pos_site_id
+ _symmetry_equiv_pos_as_xyz
+  1  'x, y, z'
+  2  '-x, -y, -z'
+  3  'x-y, x, z+1/2'
+  4  '-x+y, -x, -z+1/2'
+  5  '-y, x-y, z'
+  6  'y, -x+y, -z'
+  7  '-x, -y, z+1/2'
+  8  'x, y, -z+1/2'
+  9  '-x+y, -x, z'
+  10  'x-y, x, -z'
+  11  'y, -x+y, z+1/2'
+  12  '-y, x-y, -z+1/2'
+loop_
+ _atom_site_type_symbol
+ _atom_site_label
+ _atom_site_symmetry_multiplicity
+ _atom_site_fract_x
+ _atom_site_fract_y
+ _atom_site_fract_z
+ _atom_site_occupancy
+  K  K0  4  0.33333333  0.66666667  0.99876200  0.25
+  Pr  Pr1  4  0.33333333  0.66666667  0.99876200  0.75
+  Pr  Pr2  6  0.00855967  0.76749233  0.75000000  1.0
+  Si  Si3  6  0.02672033  0.62852967  0.25000000  1.0
+  O  O4  12  0.07742133  0.74925267  0.07395200  1.0
+  O  O5  6  0.11402433  0.52270067  0.25000000  1.0
+  O  O6  6  0.16895567  0.48803833  0.75000000  1.0
+  O  O7  2  0.00000000  0.00000000  0.25000000  1.0

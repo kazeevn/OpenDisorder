@@ -1,0 +1,52 @@
+# Reconstructed disordered parent (hypothesis, NOT an observed structure) for Tb16Ho(ErIr4)3
+# Query: GNoME_0057fbfd06_Er3Ho1Ir12Tb16.cif (Cheetham&Seshadri2024); reconstruction: similar groups=[["Er", "Ho", "Tb"]] vac=null symprec=0.01
+# Grade PLAUSIBLE: similar parent P4/ncc (Tb16Ho(ErIr4)3); LeMat: 0 other ordering(s) at Q's composition, 0 ordering(s) at other compositions, 9 end-member(s); consistent with paper's phase (space group+framework of named phase in LeMat); 9 collapsed sibling(s)
+# Supporting LeMat-Bulk entries (orderings / end members) (LeMaterial/Entalpic, CC-BY-4.0; derived from
+# Materials Project (CC-BY-4.0), Alexandria (CC-BY-4.0) and OQMD (CC-BY-4.0)): none
+# Derived data, modified (orbit-averaged occupancies); redistribute under CC-BY-4.0 with attribution.
+# generated using pymatgen
+data_Tb16Ho(ErIr4)3
+_symmetry_space_group_name_H-M   P4/ncc
+_cell_length_a   10.91967200
+_cell_length_b   10.91967200
+_cell_length_c   6.37800000
+_cell_angle_alpha   90.00000000
+_cell_angle_beta   90.00000000
+_cell_angle_gamma   90.00000000
+_symmetry_Int_Tables_number   130
+_chemical_formula_structural   Tb16Ho(ErIr4)3
+_chemical_formula_sum   'Tb16 Ho1 Er3 Ir12'
+_cell_volume   760.50785096
+_cell_formula_units_Z   1
+loop_
+ _symmetry_equiv_pos_site_id
+ _symmetry_equiv_pos_as_xyz
+  1  'x, y, z'
+  2  '-y+1/2, x+1/2, z'
+  3  '-x, -y, z'
+  4  'y+1/2, -x+1/2, z'
+  5  'x+1/2, -y+1/2, -z+1/2'
+  6  '-y, -x, -z+1/2'
+  7  '-x+1/2, y+1/2, -z+1/2'
+  8  'y, x, -z+1/2'
+  9  '-x+1/2, -y+1/2, -z'
+  10  'y, -x, -z'
+  11  'x+1/2, y+1/2, -z'
+  12  '-y, x, -z'
+  13  '-x, y, z+1/2'
+  14  'y+1/2, x+1/2, z+1/2'
+  15  'x, -y, z+1/2'
+  16  '-y+1/2, -x+1/2, z+1/2'
+loop_
+ _atom_site_type_symbol
+ _atom_site_label
+ _atom_site_symmetry_multiplicity
+ _atom_site_fract_x
+ _atom_site_fract_y
+ _atom_site_fract_z
+ _atom_site_occupancy
+  Tb  Tb0  16  0.08776400  0.29063000  0.12203900  1.0
+  Ho  Ho1  4  0.00000000  0.00000000  0.00000000  0.25
+  Er  Er2  4  0.00000000  0.00000000  0.00000000  0.75
+  Ir  Ir3  8  0.15248850  0.15248850  0.75000000  1.0
+  Ir  Ir4  4  0.00000000  0.50000000  0.37907300  1.0

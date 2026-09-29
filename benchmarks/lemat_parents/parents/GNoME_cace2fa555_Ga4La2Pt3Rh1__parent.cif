@@ -1,0 +1,54 @@
+# Reconstructed disordered parent (hypothesis, NOT an observed structure) for La2Ga4Pt3Rh
+# Query: GNoME_cace2fa555_Ga4La2Pt3Rh1.cif (Cheetham&Seshadri2024); reconstruction: similar_full groups=[["Pt", "Rh"]] vac=null symprec=0.01
+# Grade PLAUSIBLE: similar_full parent P4/nmm (La2Ga4Pt3Rh); LeMat: 0 other ordering(s) at Q's composition, 4 ordering(s) at other compositions, 9 end-member(s); paper names a mixture/analogue; Q itself in LeMat; 12 collapsed sibling(s)
+# Supporting LeMat-Bulk entries (orderings / end members) (LeMaterial/Entalpic, CC-BY-4.0; derived from
+# Materials Project (CC-BY-4.0), Alexandria (CC-BY-4.0) and OQMD (CC-BY-4.0)): agm002274869, agm004517779, agm004517781, oqmd-5552300, oqmd-5562818, oqmd-6106775, oqmd-6123806, oqmd-7748330
+# Derived data, modified (orbit-averaged occupancies); redistribute under CC-BY-4.0 with attribution.
+# generated using pymatgen
+data_La2Ga4Pt3Rh
+_symmetry_space_group_name_H-M   P4/nmm
+_cell_length_a   4.32148600
+_cell_length_b   4.32148600
+_cell_length_c   10.52183900
+_cell_angle_alpha   90.00000000
+_cell_angle_beta   90.00000000
+_cell_angle_gamma   90.00000000
+_symmetry_Int_Tables_number   129
+_chemical_formula_structural   La2Ga4Pt3Rh
+_chemical_formula_sum   'La2 Ga4 Pt3 Rh1'
+_cell_volume   196.49788170
+_cell_formula_units_Z   1
+loop_
+ _symmetry_equiv_pos_site_id
+ _symmetry_equiv_pos_as_xyz
+  1  'x, y, z'
+  2  '-y+1/2, x+1/2, z'
+  3  '-x, -y, z'
+  4  'y+1/2, -x+1/2, z'
+  5  'x+1/2, -y+1/2, -z'
+  6  '-y, -x, -z'
+  7  '-x+1/2, y+1/2, -z'
+  8  'y, x, -z'
+  9  '-x+1/2, -y+1/2, -z'
+  10  'y, -x, -z'
+  11  'x+1/2, y+1/2, -z'
+  12  '-y, x, -z'
+  13  '-x, y, z'
+  14  'y+1/2, x+1/2, z'
+  15  'x, -y, z'
+  16  '-y+1/2, -x+1/2, z'
+loop_
+ _atom_site_type_symbol
+ _atom_site_label
+ _atom_site_symmetry_multiplicity
+ _atom_site_fract_x
+ _atom_site_fract_y
+ _atom_site_fract_z
+ _atom_site_occupancy
+  La  La0  2  0.00000000  0.50000000  0.24883300  1.0
+  Ga  Ga1  2  0.00000000  0.00000000  0.50000000  1.0
+  Ga  Ga2  2  0.00000000  0.50000000  0.87404300  1.0
+  Pt  Pt3  2  0.00000000  0.00000000  0.00000000  0.75
+  Rh  Rh4  2  0.00000000  0.00000000  0.00000000  0.25
+  Pt  Pt5  2  0.00000000  0.50000000  0.63366600  0.75
+  Rh  Rh6  2  0.00000000  0.50000000  0.63366600  0.25
