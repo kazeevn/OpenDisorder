@@ -68,5 +68,66 @@ The other grades are described in the top-level README.
 - **Wyckoff-token LLM.** `WyckoffLLM-vanilla` has an unusually high pristine rate (13%) with
   little disorder. This fits a model that reproduces known templates.
 
-A manual audit of a sample of the matches (precision per grade) is pending and will be added
-here.
+## How much of known chemistry COD covers
+
+**About half of the MP-20 test split was never observed experimentally.** Materials Project
+(MP) marks 4,833 of its 9,046 entries as `theoretical`; another 284 are deprecated. The
+flags were fetched through the MP API on 2026-09-29, and `material_id.1` was converted to MP's
+new ids.
+
+| MP status | n | known % | any match % | no same-formula COD entry % |
+|---|---|---|---|---|
+| experimental (`theoretical=False`) | 3,929 | 47.1 | 49.1 | 47.1 |
+| theoretical | 4,833 | 13.0 | 30.4 | 65.1 |
+
+- **Experimental entries.** COD covers about half of them. Of the 1,999 experimental entries
+  without any match, 1,849 have no same-formula COD entry at all; for 1,824 of those the
+  formula appears nowhere in COD's metadata.
+- **Matcher misses are rare.** The remaining 150 are polymorph differences or distortions,
+  according to the audit sample.
+- **Where the gap is.** It is dominated by pnictides, carbides, borides and silicides (633),
+  intermetallics (566) and oxides (275). The list is in
+  `mp20_test_experimental_not_in_cod.csv`. These structures are typically only in ICSD or the
+  Pauling File. They are candidates for curation from the original publications and deposition
+  into COD.
+
+**Consequence.** "No match in COD" is a weak novelty signal for MP-20-trained models. Even for
+experimentally known materials, COD recognises only about 49%. Reasonable ways to report
+novelty:
+
+1. **Normalise by the control.** Report the known rate over the control's known rate. For
+   experimental MP-20 materials that control rate is about 47%.
+2. **Use COD together with the training set.** Match against COD plus the model's own
+   training data (MP-20 train), which is standard practice. COD then contributes what the
+   training set lacks: disorder-aware matching against experimental records.
+
+## Audit of match precision
+
+The audit sampled 110 hits across the grades, from a run before the precision fixes in commit
+"Precision fixes from the match audit".
+
+| grade | true | debatable | false |
+|---|---|---|---|
+| pristine | 19 | 1 | 0 |
+| disordered_realization | 17 | 2 | 1 |
+| substitutional_ordering | 13 | 6 | 1 |
+| disordered_family | 8 | 5 | 7 |
+| sibling_ordering | 7 | 11 | 2 |
+| control (MP-20 test) realization + substitution | 10 | 0 | 0 |
+
+The failure modes found, and fixed since, were:
+
+- modulated (superspace) COD CIFs parsed into wrong averages;
+- `disordered_family` assigned against dilute terminal solid solutions;
+- MatterGen-style Hume-Rothery cliques in `sibling_ordering` that merged cations with anions;
+- a Pettifor fallback that grouped heterovalent ions in compositions without a charge-balanced
+  oxidation-state guess;
+- no density check.
+
+Many "none" results with same-formula COD entries turned out to be genuinely different
+polymorphs; a few are distorted, unrelaxed versions of known structures, which the new
+loose-tolerance retry addresses. The `Compositional` set has unphysical geometries: the median
+shortest interatomic distance is 1.3 Å, and 78% have contacts below 0.6 × the sum of the atomic
+radii. That explains its 99% "no match".
+
+The table above predates these fixes. Results will be regenerated at HEAD.
