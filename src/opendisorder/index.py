@@ -90,6 +90,41 @@ def cod_formula_to_composition(formula: str | None) -> Composition | None:
     return comp
 
 
+#: CIF text fields that carry raw diffraction/refinement files (often >80% of a
+#: COD CIF's size) and are irrelevant for structure comparison.
+BULK_CIF_TAGS = (
+    "_shelx_hkl_file",
+    "_shelxl_hkl_file",
+    "_shelx_fab_file",
+    "_shelx_fcf_file",
+    "_shelx_res_file",
+    "_shelxl_res_file",
+    "_iucr_refine_instructions_details",
+    "_iucr_refine_fcf_details",
+)
+
+
+def strip_cif_bulk(text: str) -> str:
+    """Remove embedded hkl/fcf/res files (semicolon text fields of :data:`BULK_CIF_TAGS`)."""
+    if not any(tag in text for tag in BULK_CIF_TAGS):
+        return text
+    lines = text.split("\n")
+    out = []
+    i, n = 0, len(lines)
+    while i < n:
+        line = lines[i]
+        tag = line.split(maxsplit=1)[0].lower() if line.startswith("_") else ""
+        if tag in BULK_CIF_TAGS and line.strip().lower() == tag and i + 1 < n and lines[i + 1].startswith(";"):
+            j = i + 2
+            while j < n and not lines[j].startswith(";"):
+                j += 1
+            i = j + 1
+            continue
+        out.append(line)
+        i += 1
+    return "\n".join(out)
+
+
 def composition_keys(comp: Composition) -> tuple[str, str]:
     return comp.reduced_formula, "-".join(sorted({el.symbol for el in comp.elements}))
 
@@ -303,8 +338,11 @@ class CODIndex:
                 return p.read_text(encoding="utf-8", errors="replace")
         return None
 
-    def add_cif(self, cod_id: str, cif_text: str):
-        self.db.execute("INSERT OR REPLACE INTO cifs VALUES (?,?)", (str(cod_id), zlib.compress(cif_text.encode())))
+    def add_cif(self, cod_id: str, cif_text: str, replace: bool = True):
+        """Store a CIF (without embedded hkl/fcf/res files, see :func:`strip_cif_bulk`)."""
+        verb = "INSERT OR REPLACE" if replace else "INSERT OR IGNORE"
+        blob = zlib.compress(strip_cif_bulk(cif_text).encode())
+        self.db.execute(f"{verb} INTO cifs VALUES (?,?)", (str(cod_id), blob))
 
     def get_cif(self, cod_id: str) -> str | None:
         row = self.db.execute("SELECT data FROM cifs WHERE cod_id=?", (str(cod_id),)).fetchone()
@@ -365,13 +403,12 @@ class CODIndex:
                 sql += " WHERE natoms_cell IS NULL OR natoms_cell <= ?"
                 params.append(max_cell_atoms)
             wanted = {r[0] for r in self.db.execute(sql, params)}
-        verb = "INSERT OR REPLACE" if overwrite else "INSERT OR IGNORE"
         stored = seen = 0
         for cod_id, text in iter_archive_cifs(source):
             seen += 1
             if wanted is not None and cod_id not in wanted:
                 continue
-            self.db.execute(f"{verb} INTO cifs VALUES (?,?)", (cod_id, zlib.compress(text.encode())))
+            self.add_cif(cod_id, text, replace=overwrite)
             stored += 1
             if seen % progress_every == 0:
                 self.db.commit()

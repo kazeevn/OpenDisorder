@@ -95,3 +95,13 @@ def test_import_archive(index, tmp_path):
     assert index.import_archive(archive) == 1
     assert index.get_cif("1000001") == cif
     assert index.get_cif("1000009") is None
+
+
+def test_strip_cif_bulk():
+    from opendisorder.index import strip_cif_bulk
+
+    cif = "data_x\n_cell_length_a 5.0\n_shelx_hkl_file\n;\n 1 0 0 12.3 0.4\n 0 1 0 1.2 0.1\n;\n_cell_length_b 5.0\n"
+    stripped = strip_cif_bulk(cif)
+    assert "_shelx_hkl_file" not in stripped and "12.3" not in stripped
+    assert "_cell_length_a 5.0" in stripped and "_cell_length_b 5.0" in stripped
+    assert strip_cif_bulk("data_y\n_cell_length_a 1\n") == "data_y\n_cell_length_a 1\n"
