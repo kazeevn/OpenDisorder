@@ -1,0 +1,64 @@
+{
+ "all": {
+  "n": 993,
+  "ok": 993,
+  "with_candidate": 721,
+  "top1": 648,
+  "top3": 662,
+  "any_pristine": 662,
+  "any_family": 663,
+  "strict_top1": 429,
+  "strict_any": 461,
+  "transfer": {
+   "disordered_realization": 658,
+   "none": 104,
+   "disordered_family": 50
+  }
+ },
+ "substantial": {
+  "n": 857,
+  "ok": 857,
+  "with_candidate": 677,
+  "top1": 607,
+  "top3": 621,
+  "any_pristine": 621,
+  "any_family": 622,
+  "strict_top1": 422,
+  "strict_any": 454,
+  "transfer": {
+   "disordered_realization": 607,
+   "none": 97,
+   "disordered_family": 44
+  }
+ },
+ "nontrivial": {
+  "n": 640,
+  "ok": 640,
+  "with_candidate": 537,
+  "top1": 478,
+  "top3": 490,
+  "any_pristine": 490,
+  "any_family": 491,
+  "strict_top1": 329,
+  "strict_any": 355,
+  "transfer": {
+   "disordered_realization": 572,
+   "none": 89,
+   "disordered_family": 39
+  }
+ },
+ "unfinished_jobs": 7,
+ "fp": {
+  "n": 300,
+  "any_candidate": 82,
+  "any_similar": 7,
+  "top_kind": {
+   "pair": 61,
+   "pair+vac": 7,
+   "similar": 6,
+   "vac": 8
+  },
+  "any_candidate_exp": 27,
+  "n_exp": 181
+ }
+}

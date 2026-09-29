@@ -67,3 +67,7 @@ Alexandria_agm003743920_optimade.cif,Alexandria,agm003743920,https://alexandria.
 MP_mp-21512_optimade.cif,Materials Project,mp-21512,https://optimade.materialsproject.org/v1/structures/mp-21512,Juelsholt2026,Ta2CrO6 (monoclinic above x_Ta 0.65)
 MatterGen_Mn5Fe3O8_225_generated_P1.cif,MatterGen,Mn5Fe3O8,mattergen data-release/cifs.zip dft_mag_density_hhi_score/,Juelsholt2026,"(Mn,Fe)O rock salt"
 MatterGen_Cr2MoO6_generated_P1.cif,MatterGen,Cr2MoO6,mattergen data-release/cifs.zip experimental/,Zeni2025 SI,Cr2MoO6 (Collomb et al.)
+GNoME-MP_mp-3169969_AcErB83.cif,"GNoME via MP legacy task (AWS OpenData, tag google-trial-mar2023)",mp-3169969,s3://materialsproject-build legacy task documents,Cheetham&Seshadri2024,LaB6/CaB6 hexaboride [Pm-3m]
+GNoME-MP_mp-3169970_TbSmSeO2.cif,"GNoME via MP legacy task (AWS OpenData, tag google-trial-mar2023)",mp-3169970,s3://materialsproject-build legacy task documents,Cheetham&Seshadri2024,La2SeO2 type [P-3m1]
+GNoME-MP_mp-3170019_TbSmF30.cif,"GNoME via MP legacy task (AWS OpenData, tag google-trial-mar2023)",mp-3170019,s3://materialsproject-build legacy task documents,Cheetham&Seshadri2024,not credible (F2 molecules)
+GNoME-MP_mp-3170055_AcPO3.cif,"GNoME via MP legacy task (AWS OpenData, tag google-trial-mar2023)",mp-3170055,s3://materialsproject-build legacy task documents,Cheetham&Seshadri2024,La analogue (LaPO3 / AcPO4?)
