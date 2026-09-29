@@ -41,9 +41,9 @@
 | Hf2Sb2Pb4O13       | mp-1224490 | Pb2(HfSb)O6.5 + PbHfO3 [Fd-3m] (ICSD 62723, 174110; Cascales 1986)                      | novel      | none                    |                                            |
 | InSb3(PO4)6        | mp-1224667 | Sb0.5In0.5P2O7; Sb(Sb0.5In0.5)(PO4)3 [P2_1/n; Pna2_1] (ICSD 166834, 166835)             | novel      | none                    |                                            |
 | InSb3Pb4O13        | mp-1223746 | Pb2(In0.5Sb1.5)O6.5 + In2O3 [Fd-3m] (ICSD 14388/41119; Cascales 1985)                   | novel      | none                    |                                            |
-| K2TiCr(PO4)3       | mp-1224541 | K2Ti2(PO4)3 + Cr2O3 [P2_13] (ICSD 202888, 626479)                                       | suspicious | disordered_family       | 2103459 (Cr K2 O12 P3 Ti)                  |
+| K2TiCr(PO4)3       | mp-1224541 | K2Ti2(PO4)3 + Cr2O3 [P2_13] (ICSD 202888, 626479)                                       | known      | disordered_realization  | 2103459 (Cr K2 O12 P3 Ti)                  |
 | K4MgFe3(PO4)5      | mp-532755  | K4MgFe3(PO4)5 [P-42_1c] (ICSD 161484; Hidouri 2008)                                     | novel      | none                    |                                            |
-| K4TiSn3(PO5)4      | mp-1224290 | K(Ti0.25Sn0.75)OPO4 [Pna2_1] (ICSD 250088)                                              | suspicious | disordered_family       | 1526939 (K O5 P Sn0.064 Ti0.936)           |
+| K4TiSn3(PO5)4      | mp-1224290 | K(Ti0.25Sn0.75)OPO4 [Pna2_1] (ICSD 250088)                                              | known      | disordered_realization  | 1537558 (K O5 P Sn0.75 Ti0.25)             |
 | KBaGdWO6           | mp-1523079 | Ba2GdWO6 + Gd2O3 [Fm-3m] (ICSD 138973, 40473)                                           | novel      | none                    |                                            |
 | KBaPrWO6           | mp-1523149 | Ba11W4O23 + Pr6O11 [Fd-3m] (ICSD 418207)                                                | novel      | none                    |                                            |
 | KMn3O6             | mp-1016190 | K0.3MnO2 / K0.48Mn1.94O5.18 [P6_3/mmc] (ICSD 240249; Kim 1999)                          | novel      | none                    |                                            |
@@ -58,14 +58,14 @@
 | MgTi2NiO6          | mp-1221952 | (Ni0.5Mg0.5)TiO3 [R-3] (ICSD 171583)                                                    | known      | disordered_realization  | 9007388 (Mg0.5 Ni0.5 O3 Ti)                |
 | MgTi4(PO4)6        | mp-1222070 | Mg0.5Ti2(PO4)3 [R-3c] (ICSD 74287; Barth 1993)                                          | novel      | none                    |                                            |
 | MgV4Cu3O14         | mp-1222158 | (Cu1.5Mg0.5)V2O7 [C2/c] (ICSD 69731)                                                    | known      | disordered_realization  | 2002572 (Cu1.5 Mg0.5 O7 V2)                |
-| Mn2VPO7            | mp-1210613 | Mn2P2O7 / Mn2V2O7 [C2/m] (ICSD 47136)                                                   | suspicious | disordered_family       | 1539969 (Mn2 O7 P1.09 V0.91)               |
+| Mn2VPO7            | mp-1210613 | Mn2P2O7 / Mn2V2O7 [C2/m] (ICSD 47136)                                                   | known      | disordered_realization  | 1539969 (Mn2 O7 P1.09 V0.91)               |
 | Mn4Zn3(NiO6)2      | mp-1222033 | (Zn0.759Mn0.241)(Mn1.35Ni0.65)O4 + NiO [Fd-3m] (ICSD 92223; Guillemet-Fritsch 2000)     | known      | disordered_realization  | 1526211 (Mn1.338 Ni0.65 O4 Zn1.012)        |
 | Mn7(P2O7)4         | mp-778008  | Mn2(PO3)4 [C2/c] (ICSD 145534)                                                          | novel      | none                    |                                            |
 | MnAgO2             | mp-996995  | MnAgO2 [C2/m] (ICSD 139006; Griesemer 2021)                                             | novel      | none                    |                                            |
 | Na3Ca18Fe(PO4)14   | mp-725491  | Na3Ca18Fe(PO4)14 (whitlockite) [R3c] (ICSD 85103)                                       | novel      | none                    |                                            |
 | Na7Mg7Fe5(PO4)12   | mp-1173791 | Na2Mg2Fe(PO4)3 (alluaudite) [C2/c] (ICSD 138263)                                        | known      | disordered_realization  | 2201754 (Fe1.21 Mg1.79 Na1.79 O12 P3)      |
 | NaCaMgFe(SiO3)4    | mp-1221075 | (Ca,Na)(Mg,Fe)Si2O6 pyroxene [C2/c] (ICSD 75294, 417169)                                | known      | disordered_realization  | 9014598 (Ca0.58 Fe0.5 Mg0.5 Na0.42 O6 Si2) |
-| NaMnFe(PO4)2       | mp-1173592 | Na-Mn-Fe alluaudite [C2/c] (ICSD 138263 (Daidouh 2002))                                 | suspicious | disordered_family       | 9003657 (Fe1.5 Mn1.538 Na1.56 O12 P3)      |
+| NaMnFe(PO4)2       | mp-1173592 | Na-Mn-Fe alluaudite [C2/c] (ICSD 138263 (Daidouh 2002))                                 | known      | disordered_realization  | 9003657 (Fe1.5 Mn1.538 Na1.56 O12 P3)      |
 | Sn2Sb2Pb4O13       | mp-1219056 | Pb2SnSbO6.5 + SnO2 [Fd-3m] (ICSD 62722, 9163)                                           | novel      | none                    |                                            |
 | Y3In2(GaO4)3       | mp-1207946 | Y3In2Ga3O12 [Ia-3d] (ICSD 54664; Li & Zhong 2022)                                       | novel      | none                    |                                            |
 | Zn2Cr3FeO8         | mp-1215741 | ZnFe(2-x)CrxO4 / Zn(FeCrO4) [Fd-3m] (ICSD 167362, 81207; Oles 1970)                     | suspicious | substitutional_ordering | 1011278 (Cr2 O4 Zn)                        |

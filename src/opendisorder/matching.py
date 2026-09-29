@@ -17,8 +17,14 @@ Two kinds of match are implemented:
      query element;
   b. reference sites left empty by the query are partially occupied
      (i.e. they have vacancy capacity);
-  c. for each class of equivalent reference sites the element fractions of
-     the query agree with the reference occupancies within a tolerance.
+  c. the global composition agrees (MatterGen's tolerance) and every
+     sublattice (reference sites hosting the same set of elements) either
+     - has query site fractions within ``occupancy_tol`` of the reference
+       occupancies, or
+     - is realized by its majority occupants: each query atom on a site where
+       its element has the largest occupancy, each empty site one where the
+       vacancy fraction is largest (the idealized ordering of minor anti-site
+       disorder, e.g. the Na0.82Mn0.18 sites of alluaudites).
 
   If (a) and (b) hold but (c) fails, the query shares the framework and the
   site-species pattern of a known disordered phase but has a different
@@ -120,6 +126,45 @@ def fractional_composition_close(c1: Composition, c2: Composition, atol: float =
     return True
 
 
+def _element_set_key(site) -> tuple:
+    return tuple(sorted(el.symbol for el in site.species.elements))
+
+
+def _occupancy_deviations(q: Structure, matched, mapped: Structure, key) -> dict[tuple, tuple[float, bool]]:
+    """Per class of reference sites (defined by ``key``): the largest per-element
+    difference between the query's site fractions and the reference
+    occupancies, and whether the query realizes the class by its *majority*
+    occupants (each query atom on a site where its element has the largest
+    occupancy, each empty site one where vacancy is the largest fraction)."""
+    n = len(q)
+    expected: dict[tuple, dict[str, float]] = {}
+    actual: dict[tuple, dict[str, float]] = {}
+    counts: dict[tuple, int] = {}
+    majority: dict[tuple, bool] = {}
+    for i, rs in enumerate(mapped):
+        k = key(rs)
+        counts[k] = counts.get(k, 0) + 1
+        exp = expected.setdefault(k, {})
+        occ = {el.symbol: float(x) for el, x in rs.species.items()}
+        for el, x in occ.items():
+            exp[el] = exp.get(el, 0.0) + x
+        vacancy = max(0.0, 1.0 - sum(occ.values()))
+        top = max([*occ.values(), vacancy])
+        if i < n:
+            el = q[i].specie.symbol
+            actual.setdefault(k, {})[el] = actual.get(k, {}).get(el, 0.0) + 1.0
+            ok = occ.get(el, 0.0) >= top - 1e-6
+        else:
+            ok = vacancy >= top - 1e-6
+        majority[k] = majority.get(k, True) and ok
+    out = {}
+    for k, exp in expected.items():
+        act = actual.get(k, {})
+        dev = max(abs(exp.get(el, 0.0) - act.get(el, 0.0)) / counts[k] for el in set(exp) | set(act))
+        out[k] = (dev, majority[k])
+    return out
+
+
 def _site_key(site, ndigits: int = 3) -> tuple:
     """Hashable label of a (possibly disordered) site's species and occupancies."""
     return tuple(sorted((el.symbol, round(float(occ), ndigits)) for el, occ in site.species.items()))
@@ -184,13 +229,17 @@ class DisorderMatcher:
 
     Args:
         ltol, stol, angle_tol: StructureMatcher tolerances.
-        occupancy_tol: maximum absolute deviation, per class of equivalent
-            reference sites and per element, between the query's site fraction
-            and the reference occupancy for a ``DISORDERED_REALIZATION``.
-            Also used as the vacancy threshold (a reference site with total
-            occupancy above ``1 - occupancy_tol`` must be filled).
+        occupancy_tol: maximum absolute deviation, per sublattice (reference
+            sites hosting the same set of elements) and per element, between
+            the query's site fraction and the reference occupancy for a
+            ``DISORDERED_REALIZATION``.  0.2 accommodates the coarse fractions
+            a small supercell can realize (multiples of 1/k on a k-site
+            sublattice) and redistribution between sublattices; the global
+            composition check below is the stoichiometry guard.
+        vacancy_tol: a reference site with total occupancy above
+            ``1 - vacancy_tol`` must not be left empty by the query.
         composition_atol, composition_rtol: global composition tolerance
-            (MatterGen's criterion); both this and the per-site check must pass.
+            (MatterGen's criterion); both this and the sublattice check must pass.
         max_supercell: largest ratio of query volume per formula to reference
             primitive-cell volume that is attempted; larger ratios are skipped.
     """
@@ -198,7 +247,8 @@ class DisorderMatcher:
     ltol: float = 0.2
     stol: float = 0.3
     angle_tol: float = 5.0
-    occupancy_tol: float = 0.1
+    occupancy_tol: float = 0.2
+    vacancy_tol: float = 0.1
     composition_atol: float = 0.01
     composition_rtol: float = 0.1
     max_supercell: int = 16
@@ -287,39 +337,34 @@ class DisorderMatcher:
                 return MatchResult(MatchKind.NONE, details={"reason": "species mismatch"})
         # (b) empty reference sites must be able to be vacant
         for rs in unmatched:
-            if rs.species.num_atoms > 1 - self.occupancy_tol:
+            if rs.species.num_atoms > 1 - self.vacancy_tol:
                 return MatchResult(MatchKind.NONE, details={"reason": "fully occupied site left empty"})
 
-        # (c) per-site-class composition
-        expected: dict[tuple, dict[str, float]] = {}
-        actual: dict[tuple, dict[str, float]] = {}
-        counts: dict[tuple, int] = {}
-        for rs in mapped:
-            key = _site_key(rs)
-            counts[key] = counts.get(key, 0) + 1
-            exp = expected.setdefault(key, {})
-            for el, occ in rs.species.items():
-                exp[el.symbol] = exp.get(el.symbol, 0.0) + float(occ)
-        for qs, rs in zip(q, matched):
-            act = actual.setdefault(_site_key(rs), {})
-            act[qs.specie.symbol] = act.get(qs.specie.symbol, 0.0) + 1.0
-
-        max_dev = 0.0
-        for key, exp in expected.items():
-            act = actual.get(key, {})
-            for el in set(exp) | set(act):
-                dev = abs(exp.get(el, 0.0) - act.get(el, 0.0)) / counts[key]
-                max_dev = max(max_dev, dev)
+        # (c) composition per sublattice.  Reference sites are pooled by the set
+        # of elements they host (e.g. all {Ti, Cr} sites): the site mapping
+        # StructureMatcher returns is only one of several equivalent ones, so
+        # a partially ordered reference (two {Ti, Cr} orbits with different
+        # ratios) would otherwise look like a mismatch depending on that
+        # arbitrary choice.  The strict per-orbit deviation is reported too.
+        per_sublattice = _occupancy_deviations(q, matched, mapped, _element_set_key)
+        max_dev = max(dev for dev, _ in per_sublattice.values())
+        max_dev_orbit = max(dev for dev, _ in _occupancy_deviations(q, matched, mapped, _site_key).values())
+        # each sublattice: occupancies reproduced within tolerance, or realized by
+        # its majority occupants (idealized ordering of minor anti-site disorder)
+        sublattices_ok = all(dev <= self.occupancy_tol + 1e-8 or maj for dev, maj in per_sublattice.values())
+        n_majority = sum(1 for dev, maj in per_sublattice.values() if dev > self.occupancy_tol + 1e-8 and maj)
 
         ref_comp = Composition({el: amt for el, amt in mapped.composition.items()})
         comp_ok = fractional_composition_close(q.composition, ref_comp, self.composition_atol, self.composition_rtol)
         details = {
-            "max_site_occupancy_deviation": round(max_dev, 4),
+            "max_sublattice_occupancy_deviation": round(max_dev, 4),
+            "max_site_occupancy_deviation": round(max_dev_orbit, 4),
             "supercell_sites": len(mapped),
             "reference_supercell_composition": ref_comp.formula,
             "global_composition_ok": comp_ok,
+            "idealized_sublattices": n_majority,
         }
-        if max_dev <= self.occupancy_tol + 1e-8 and comp_ok:
+        if comp_ok and sublattices_ok:
             return MatchResult(MatchKind.DISORDERED_REALIZATION, details=details)
         return MatchResult(MatchKind.DISORDERED_FAMILY, details=details)
 

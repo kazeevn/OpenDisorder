@@ -172,3 +172,25 @@ def test_disorder_similar_elements_two_cliques():
     d = disorder_similar_elements(s)
     assert d is not None and not d.is_ordered
     assert d.composition.almost_equals(s.composition)
+
+
+def test_partially_ordered_reference(dm):
+    """A reference with two mixed Li/Fe orbits (0.7/0.3 and 0.3/0.7): an ordered
+    layering is a realization whichever orbit the matcher maps Li onto."""
+    a = {"Li": 0.7, "Fe": 0.3}
+    b = {"Li": 0.3, "Fe": 0.7}
+    ref = rocksalt_cell([a, a, b, b], abc=(4.2, 4.2, 4.2))
+    for order in (["Li", "Li", "Fe", "Fe"], ["Fe", "Fe", "Li", "Li"]):
+        res = dm.match(rocksalt_cell(order), ref)
+        assert res.kind is MatchKind.DISORDERED_REALIZATION, res.details
+
+
+def test_majority_ordering_of_antisite_disorder():
+    """Minor anti-site disorder: the idealized ordering is a realization even
+    when the sublattice occupancies are off by more than the tolerance."""
+    dm = DisorderMatcher(occupancy_tol=0.1)
+    a = {"Li": 0.88, "Mg": 0.12}  # minor Mg on the Li sites; Mg sites stay pure
+    ref = rocksalt_cell([a, a, "Mg", "Mg"], abc=(4.2, 4.2, 4.2))
+    res = dm.match(rocksalt_cell(["Li", "Li", "Mg", "Mg"]), ref)
+    assert res.details["max_sublattice_occupancy_deviation"] > dm.occupancy_tol
+    assert res.kind is MatchKind.DISORDERED_REALIZATION and res.details["idealized_sublattices"] == 1

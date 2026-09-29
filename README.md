@@ -43,17 +43,26 @@ ordered structure matches a disordered reference if two things hold:
 MatterGen tests this with `StructureMatcher(attempt_supercell=True, allow_subset=True,
 comparator=OrderDisorderElementComparator())`.
 
-That screen on its own gives false positives. `allow_subset` lets a whole sublattice go missing,
-and the global composition test is diluted by the anions. For example, Li₃FeO₄ passes against
-(Li₀.₅Fe₀.₅)O. So `opendisorder` puts the screen (with `supercell_size="volume"`, needed for
-ordered vacancies) before an explicit check of the site mapping, in
+The structure screen on its own is too permissive. `allow_subset` lets a whole sublattice go
+missing, and with the default `supercell_size="num_sites"` ordered-vacancy structures are missed
+(LiO₂ against Li₀.₅O). MatterGen's global composition test catches many of the false positives,
+but it only sees overall stoichiometry. So `opendisorder` runs the screen with
+`supercell_size="volume"` and then checks the explicit site mapping, in
 `opendisorder.matching.DisorderMatcher`:
 
 1. every query atom sits on a reference site whose species include that element;
-2. reference sites left empty by the query are partially occupied (they have vacancies);
-3. for every class of equivalent reference sites and every element, the query's site fraction is
-   within `occupancy_tol = 0.1` of the reference occupancy, and MatterGen's global composition
-   test passes as well.
+2. no reference site with occupancy above 0.9 is left empty by the query;
+3. MatterGen's global composition test passes, and every *sublattice* of the reference (all sites
+   hosting the same set of elements, e.g. every {Ti, Cr} site) is realized. A sublattice counts as
+   realized when either
+   - the query's site fractions are within `occupancy_tol = 0.2` of the reference occupancies, or
+   - it is filled by its majority occupants: the idealized ordering of minor anti-site disorder,
+     such as the Na₀.₈₂Mn₀.₁₈ sites of alluaudites.
+
+   Pooling sites by element set makes the check independent of which of several equivalent site
+   mappings StructureMatcher returns. That matters for partially ordered references, which have
+   several mixed orbits with different ratios. The strict per-orbit deviation is reported as
+   well.
 
 If checks 1 and 2 pass but check 3 fails, the result is `disordered_family`. Juelsholt's TaCr₂O₆
 against (Ta₀.₅Cr₀.₅)O₂ falls in this class.
@@ -87,6 +96,19 @@ these, `opendisorder` does the following:
    non-grouped elements and at least one element of each group.
 3. It maps every group onto one element in both structures and compares them. A pristine match, or
    an ordered realization when the reference is disordered, gives `substitutional_ordering`.
+
+### Comparison with MatterGen's matcher
+
+`benchmarks/mattergen_baseline` runs MatterGen's `DisorderedStructureMatcher` (vendored, MIT
+licence) on the same COD candidates. On the 68 literature structures, every case MatterGen matches
+is also `pristine` or `disordered_realization` here. In addition, `opendisorder`:
+
+- matches ordered-vacancy superstructures, which MatterGen misses;
+- reports 4 `disordered_family` cases where MatterGen finds nothing, among them TaCr₂O₆;
+- finds 10 `substitutional_ordering` cases. MatterGen cannot find these, because it searches only
+  the query's own chemical system.
+
+See [`benchmarks/mattergen_baseline/results.md`](benchmarks/mattergen_baseline/results.md).
 
 ## How COD is indexed
 
@@ -171,7 +193,7 @@ The per-compound table is in [`benchmarks/literature/README.md`](benchmarks/lite
 | paper | known | suspicious | no COD match |
 |---|---|---|---|
 | Juelsholt 2026 (MatterGen) | 4 | 3 | 0 |
-| Leeman et al. 2024 (A-Lab) | 6 | 13 | 24 |
+| Leeman et al. 2024 (A-Lab) | 10 | 9 | 24 |
 | Cheetham & Seshadri 2024 (GNoME) | 0 | 2 | 15 |
 
 What the flags cover and what they miss:

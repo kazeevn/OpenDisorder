@@ -65,6 +65,9 @@ def run_set(checker: NoveltyChecker, name: str, processes: int, fetch: bool) -> 
                 "is_novel_strict": rep.is_novel_strict,
                 "best_cod_id": best.reference_id if best else None,
                 "cod_ids": ";".join(f"{m.reference_id}:{m.kind.value}" for m in rep.matches),
+                "max_sublattice_occupancy_deviation": (
+                    best.details.get("max_sublattice_occupancy_deviation") if best else None
+                ),
                 "max_site_occupancy_deviation": (best.details.get("max_site_occupancy_deviation") if best else None),
                 "n_pristine_candidates": rep.n_pristine_candidates,
                 "n_disorder_candidates": rep.n_disorder_candidates,
