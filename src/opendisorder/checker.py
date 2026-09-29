@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import functools
+import itertools
 import logging
 import signal
 from collections import defaultdict
@@ -10,7 +12,7 @@ from concurrent.futures import ProcessPoolExecutor
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 
-from pymatgen.core import Structure
+from pymatgen.core import Composition, Structure
 
 from .index import CODIndex
 from .matching import (
@@ -22,6 +24,9 @@ from .matching import (
     SiblingOrderingMatcher,
     chemsys,
     clean_structure,
+    collapse_elements,
+    guess_ionic_radii,
+    similarity_groups,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +47,7 @@ class NoveltyReport:
     matches: list[MatchResult] = field(default_factory=list)
     n_pristine_candidates: int = 0
     n_disorder_candidates: int = 0
+    n_substitution_candidates: int = 0
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -71,6 +77,11 @@ class NoveltyReport:
         d["is_novel_strict"] = self.is_novel_strict
         d["matches"] = [{"cod_id": m.reference_id, "kind": m.kind.value, **m.details} for m in self.matches]
         return d
+
+
+@functools.lru_cache(maxsize=65536)
+def _ionic_radii(reduced_formula: str) -> dict:
+    return guess_ionic_radii(Composition(reduced_formula))
 
 
 class _Timeout(Exception):
@@ -117,6 +128,31 @@ class CheckOptions:
     at most 4 primitive cells; the extra 10% covers composition tolerance."""
     time_limit: float | None = 30.0
     """Seconds allowed per structure comparison (``None`` = no limit)."""
+    check_substitutions: bool = True
+    """Layer 2c: compare with COD entries whose elements are a subset of the
+    query's after merging chemically similar elements (see
+    :func:`opendisorder.matching.similarity_groups`)."""
+    substitution_max_mendeleev: float = 6
+    substitution_max_radius: float = 0.2
+    substitution_ionic: bool = True
+    """Also treat ions with the same guessed oxidation state and Shannon radii
+    within 15% as similar (e.g. Zr4+/Sn4+ in BaZr0.5Sn0.5O3)."""
+    substitution_max_ionic_radius: float = 0.15
+    max_substitution_chemsys: int = 64
+
+
+@dataclass
+class Candidates:
+    pristine: list[str] = field(default_factory=list)
+    """same reduced formula"""
+    disorder: list[str] = field(default_factory=list)
+    """same chemical system"""
+    substitution: list[str] = field(default_factory=list)
+    """chemical system a strict subset of the query's modulo similar elements"""
+    groups: list = field(default_factory=list)
+
+    def all(self) -> list[str]:
+        return list(dict.fromkeys([*self.pristine, *self.disorder, *self.substitution]))
 
 
 class NoveltyChecker:
@@ -129,6 +165,11 @@ class NoveltyChecker:
     structure has partial occupancies are compared with
     :class:`DisorderMatcher`; same-formula ordered entries are optionally
     compared with :class:`SiblingOrderingMatcher`.
+
+    Layer 2c (substitution): COD entries whose element set is a strict subset
+    of the query's once chemically similar elements are merged; the query is
+    flagged if, with each similar-element group collapsed onto one element,
+    it matches such an entry (or is an ordered realization of it).
     """
 
     def __init__(
@@ -147,27 +188,83 @@ class NoveltyChecker:
 
     # ------------------------------------------------------------------ candidates
 
-    def candidate_ids(self, structure: Structure) -> tuple[list[str], list[str]]:
-        """COD ids for layer 1 (same reduced formula) and layer 2 (same chemical system)."""
+    def candidate_ids(self, structure: Structure) -> Candidates:
+        """COD ids for layer 1 (same reduced formula), layer 2 (same chemical
+        system) and layer 2c (similar-element substitution)."""
         opts = self.options
         rf = structure.composition.reduced_formula
         cs = chemsys(structure)
         max_atoms = opts.max_cell_atoms_factor * structure.composition.num_atoms if opts.max_cell_atoms_factor else None
-        pristine = self.index.ids_by_reduced_formula(rf, max_cell_atoms=max_atoms)
-        disorder: list[str] = []
+        cand = Candidates(pristine=self.index.ids_by_reduced_formula(rf, max_cell_atoms=max_atoms))
         if opts.check_disorder:
-            disorder = self.index.ids_by_chemsys(
+            cand.disorder = self.index.ids_by_chemsys(
                 cs, disorder_only=opts.disorder_candidates_flagged_only, max_cell_atoms=max_atoms
             )
-        return pristine, disorder
+        if opts.check_substitutions and structure.is_ordered:
+            cand.groups, cand.substitution = self._substitution_ids(structure, max_atoms)
+        return cand
+
+    def _substitution_ids(self, structure: Structure, max_atoms) -> tuple[list, list[str]]:
+        opts = self.options
+        ionic = {}
+        if opts.substitution_ionic:
+            try:
+                with _time_limit(5.0):
+                    ionic = _ionic_radii(structure.composition.reduced_formula)
+            except _Timeout:
+                ionic = {}
+        groups = similarity_groups(
+            structure.composition.elements,
+            opts.substitution_max_mendeleev,
+            opts.substitution_max_radius,
+            ionic=ionic,
+            max_ionic_dr=opts.substitution_max_ionic_radius,
+        )
+        if all(len(g) == 1 for g in groups):
+            return groups, []
+        own = chemsys(structure)
+        target = collapse_elements(structure, groups).composition.reduced_formula
+        choices = [
+            [c for r in range(1, len(g) + 1) for c in itertools.combinations(g, r)] if len(g) > 1 else [tuple(g)]
+            for g in groups
+        ]
+        ids: list[str] = []
+        for n, combo in enumerate(itertools.product(*choices)):
+            if n >= opts.max_substitution_chemsys:
+                break
+            cs = "-".join(sorted(el.symbol for part in combo for el in part))
+            if cs == own:
+                continue
+            for cid in self.index.ids_by_chemsys(cs, max_cell_atoms=max_atoms):
+                e = self.index.entry(cid)
+                # keep entries that could match after collapsing: same collapsed
+                # formula, or (possibly) disordered
+                if e and (e["has_disorder"] or e["fractional"] or self._collapsed_formula(e, groups) == target):
+                    ids.append(cid)
+        return groups, ids
+
+    @staticmethod
+    def _collapsed_formula(entry: dict, groups) -> str | None:
+        from .index import cod_formula_to_composition
+
+        for field_name in ("formula", "calcformula"):
+            comp = cod_formula_to_composition(entry.get(field_name))
+            if comp is not None:
+                rep = {el: g[0] for g in groups for el in g}
+                merged: dict = {}
+                for el, amt in comp.items():
+                    key = rep.get(el, el)
+                    merged[key] = merged.get(key, 0) + amt
+                from pymatgen.core import Composition
+
+                return Composition(merged).reduced_formula
+        return None
 
     def prefetch(self, structures: Iterable[Structure], processes: int = 1) -> int:
         """Download and parse all COD entries that ``structures`` need."""
         ids: set[str] = set()
         for s in structures:
-            p, d = self.candidate_ids(s)
-            ids.update(p)
-            ids.update(d)
+            ids.update(self.candidate_ids(s).all())
         self.index.prepare(sorted(ids), processes=processes)
         return len(ids)
 
@@ -175,9 +272,9 @@ class NoveltyChecker:
 
     def check(self, structure: Structure, fetch: bool = True) -> NoveltyReport:
         q = clean_structure(structure)
-        pristine_ids, disorder_ids = self.candidate_ids(q)
-        refs = self.index.get_structures(dict.fromkeys(pristine_ids + disorder_ids), fetch=fetch)
-        return self._check_with_refs(q, pristine_ids, disorder_ids, refs)
+        cand = self.candidate_ids(q)
+        refs = self.index.get_structures(cand.all(), fetch=fetch)
+        return self._check_with_refs(q, cand, refs)
 
     def _compare(self, report: NoveltyReport, fn, *args) -> MatchResult | None:
         try:
@@ -189,10 +286,9 @@ class NoveltyChecker:
             report.errors.append(f"{type(exc).__name__}: {exc}")
         return None
 
-    def _check_with_refs(
-        self, q: Structure, pristine_ids: Sequence[str], disorder_ids: Sequence[str], refs: dict[str, Structure]
-    ) -> NoveltyReport:
+    def _check_with_refs(self, q: Structure, cand: Candidates, refs: dict[str, Structure]) -> NoveltyReport:
         opts = self.options
+        pristine_ids, disorder_ids = cand.pristine, cand.disorder
         report = NoveltyReport(formula=q.composition.reduced_formula, chemsys=chemsys(q))
         rf = q.composition.reduced_formula
 
@@ -252,6 +348,19 @@ class NoveltyChecker:
         if found_realization and not opts.exhaustive:
             return self._finish(report)
 
+        # ---- layer 2c: ordering of similar elements on a known structure with fewer elements
+        subst = [cid for cid in cand.substitution if cid in refs]
+        report.n_substitution_candidates = len(subst)
+        if subst:
+            qc = collapse_elements(q, cand.groups)
+            for cid in subst:
+                res = self._compare(report, self._substitution_match, qc, collapse_elements(refs[cid], cand.groups))
+                if res is not None:
+                    res.reference_id = cid
+                    report.matches.append(res)
+                    if not opts.exhaustive:
+                        break
+
         # ---- layer 2b: different ordering of similar elements (same formula)
         if opts.check_siblings and unmatched_ordered:
             dq = self.sibling.prepare(q)
@@ -262,6 +371,16 @@ class NoveltyChecker:
                         if not opts.exhaustive:
                             break
         return self._finish(report)
+
+    def _substitution_match(self, qc: Structure, rc: Structure) -> MatchResult | None:
+        if rc.is_ordered:
+            if self.pristine.fit(qc, rc):
+                return MatchResult(MatchKind.SUBSTITUTIONAL_ORDERING, details={"via": "pristine"})
+            return None
+        res = self.disorder.match(qc, rc)
+        if res.kind is MatchKind.DISORDERED_REALIZATION:
+            return MatchResult(MatchKind.SUBSTITUTIONAL_ORDERING, details={"via": "disordered_realization", **res.details})
+        return None
 
     @staticmethod
     def _finish(report: NoveltyReport) -> NoveltyReport:
@@ -323,10 +442,10 @@ class NoveltyChecker:
         out = []
         ref_cache: dict[str, Structure] = {}
         for i, q in items:
-            p_ids, d_ids = self.candidate_ids(q)
-            need = [cid for cid in dict.fromkeys(p_ids + d_ids) if cid not in ref_cache]
+            cand = self.candidate_ids(q)
+            need = [cid for cid in cand.all() if cid not in ref_cache]
             ref_cache.update(self.index.get_structures(need, fetch=False))
-            out.append((i, self._check_with_refs(q, p_ids, d_ids, ref_cache)))
+            out.append((i, self._check_with_refs(q, cand, ref_cache)))
         return out
 
 

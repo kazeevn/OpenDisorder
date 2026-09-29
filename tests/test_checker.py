@@ -105,3 +105,17 @@ def test_strip_cif_bulk():
     assert "_shelx_hkl_file" not in stripped and "12.3" not in stripped
     assert "_cell_length_a 5.0" in stripped and "_cell_length_b 5.0" in stripped
     assert strip_cif_bulk("data_y\n_cell_length_a 1\n") == "data_y\n_cell_length_a 1\n"
+
+
+def test_substitutional_ordering(index):
+    """Ordered (Na,K)Cl on the rock-salt lattice is an ordering of similar
+    elements over the known NaCl structure."""
+    cat = [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]
+    an = [[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5], [0.5, 0.5, 0.5]]
+    q = Structure(Lattice.orthorhombic(6.0, 6.0, 6.2), ["Na", "Na", "K", "K"] + ["Cl"] * 4, cat + an)
+    checker = NoveltyChecker(index, options=CheckOptions(time_limit=None))
+    rep = checker.check(q)
+    assert rep.kind is MatchKind.SUBSTITUTIONAL_ORDERING and rep.cod_ids == ["1000001"]
+    assert rep.is_novel and not rep.is_novel_strict
+    rep = NoveltyChecker(index, options=CheckOptions(check_substitutions=False)).check(q)
+    assert rep.kind is MatchKind.NONE

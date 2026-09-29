@@ -11,6 +11,7 @@ COD entry with partial occupancies.
 | `pristine` | same structure as an ordered COD entry (same reduced formula, `StructureMatcher` fit) | yes |
 | `disordered_realization` | ordered realization ("coloring", ordered approximant) of a disordered COD entry with a consistent composition | yes |
 | `disordered_family` | same framework and site-species pattern as a disordered COD entry, but a different stoichiometry (another member of a solid-solution series) | no, but suspicious |
+| `substitutional_ordering` | ordering of chemically similar elements over the sites of a known COD structure with fewer elements, e.g. GNoME's TbHo₂Tm₉Co₄ as an ordered (Tb,Ho,Tm)₃Co on the Ho₃Co structure | no, but suspicious |
 | `sibling_ordering` | a different ordering of chemically similar elements on the same parent structure as an ordered COD entry with the same formula | no, but suspicious |
 | `none` | no match | no |
 
@@ -60,6 +61,32 @@ against (Ta₀.₅Cr₀.₅)O₂ falls in this class.
 MatterGen's ordered-vs-ordered route becomes `sibling_ordering`. Elements that are similar enough
 by Hume-Rothery-like rules (|ΔX| ≤ 1.0, relative atomic radius difference ≤ 0.3, transitive
 cliques) are merged into mixed sites, and the structure is compared again.
+
+### Substitutions of similar elements
+
+Many disputed predictions are orderings of chemically similar elements on a known structure that
+has *fewer* elements. Examples:
+
+- GNoME's TbHo₂Tm₉Co₄ as an ordered (Tb,Ho,Tm)₃Co (Cheetham & Seshadri 2024);
+- the A-Lab target Ba₂ZrSnO₆ as BaZr₀.₅Sn₀.₅O₃ (Leeman et al. 2024).
+
+Their parent phases sit in a different chemical system, so the layers above cannot find them. For
+these, `opendisorder` does the following:
+
+1. It groups the query's elements into similarity groups
+   (`opendisorder.matching.similarity_groups`):
+   - in ionic compounds (oxidation states from pymatgen's `oxi_state_guesses`), elements are
+     similar if they are isovalent and their Shannon radii are within 15% (Goldschmidt), e.g.
+     Zr⁴⁺/Sn⁴⁺ and Mg²⁺/Ni²⁺, or if they are chemically close, e.g. K⁺/Na⁺;
+   - otherwise elements are similar if their Pettifor (Mendeleev) numbers differ by at most 6 and
+     their atomic radii by at most 20%, e.g. the rare earths.
+   Groups are built by complete linkage, so there is no chaining. MatterGen's Hume-Rothery
+   thresholds are far too loose for this step: they would put Co in the same group as the rare
+   earths.
+2. It looks up COD entries whose element set is a strict subset of the query's, keeping all
+   non-grouped elements and at least one element of each group.
+3. It maps every group onto one element in both structures and compares them. A pristine match, or
+   an ordered realization when the reference is disordered, gives `substitutional_ordering`.
 
 ## How COD is indexed
 
@@ -130,6 +157,37 @@ TaCr₂O₆ is reported as `disordered_family` rather than `disordered_realizati
 framework and the mixed Ta/Cr site of Ta₁/₂Cr₁/₂O₂, but the occupancies differ by 1/6. By
 Juelsholt's argument that still makes it not novel, and `NoveltyReport.is_novel_strict` follows
 that reading. `tests/data` holds these files as a regression test.
+
+## Case studies: GNoME and the A-Lab
+
+`benchmarks/literature` screens 68 structures that the literature disputes as new:
+
+- the GNoME predictions in Cheetham & Seshadri (2024);
+- all A-Lab targets from Leeman et al. (2024), taken from Materials Project;
+- the MatterGen cases above.
+
+The per-compound table is in [`benchmarks/literature/README.md`](benchmarks/literature/README.md).
+
+| paper | known | suspicious | no COD match |
+|---|---|---|---|
+| Juelsholt 2026 (MatterGen) | 4 | 3 | 0 |
+| Leeman et al. 2024 (A-Lab) | 6 | 13 | 24 |
+| Cheetham & Seshadri 2024 (GNoME) | 0 | 2 | 15 |
+
+What the flags cover and what they miss:
+
+- **A-Lab.** The flags cover most of the disorder cases Leeman et al. name:
+  - (Ni,Mg)TiO₃ ilmenite, the pyroxene, (Cu,Mg)₂V₂O₇ and the Zn–Mn–Ni spinel, as ordered
+    realizations;
+  - the Mg–Ni rock salt, BaZr₀.₅Sn₀.₅O₃, the Zn(Cr,Fe)₂O₄ and Zn–Ni–Sb spinels, the M₂(PO₃)₄
+    phosphates and the (Na,K)Pb apatite, as substitutional orderings;
+  - the Na-doped KTP phases and the alluaudites, as the same disordered family.
+- **A-Lab misses.** Most are cases where the known phase is only in ICSD. Examples are the
+  Pb₂(M,Sb)₂O₆.₅ pyrochlores, which have no Pb–Sb–M–O entries in COD.
+- **GNoME.** Cheetham & Seshadri's Table 2 compares GNoME compounds with *isostructural analogues
+  containing different elements*, such as Pb₂Pd₃SnY₃ against PbPtGd. That is structure-type
+  novelty, not disorder, and is out of scope here. Several rare-earth intermetallic parents, such
+  as Ln₅Ir₃ and (Dy,Ho)Rh₃, are not in COD.
 
 ## Benchmark: generated crystals
 

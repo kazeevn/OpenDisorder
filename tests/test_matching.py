@@ -145,3 +145,20 @@ def test_mattergen_tacr2o6_regression():
     dm = DisorderMatcher()
     assert dm.match(Structure.from_file(data / "mattergen_TaCr2O6.cif"), cod).kind is MatchKind.DISORDERED_FAMILY
     assert dm.match(Structure.from_file(data / "mp-753467_TaCrO4.cif"), cod).kind is MatchKind.DISORDERED_REALIZATION
+
+
+def test_similarity_groups():
+    from pymatgen.core import Composition, Element
+
+    from opendisorder.matching import guess_ionic_radii, similarity_groups
+
+    def groups(formula):
+        comp = Composition(formula)
+        return [{e.symbol for e in g} for g in similarity_groups(comp.elements, ionic=guess_ionic_radii(comp))]
+
+    assert {"Tb", "Ho", "Tm"} in groups("TbHo2Tm9Co4")  # rare earths, not Co
+    assert {"Co"} in groups("TbHo2Tm9Co4")
+    assert {"Zr", "Sn"} in groups("Ba2ZrSnO6")  # isovalent, similar ionic radii
+    assert {"Mg", "Ni"} in groups("Mg3NiO4")
+    assert {"Na"} in groups("Na3Ca18Fe(PO4)14")  # heterovalent Na+/Ca2+ stay apart
+    assert all(len(g) == 1 for g in similarity_groups([Element("Li"), Element("O")]))

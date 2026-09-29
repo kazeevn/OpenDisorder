@@ -60,6 +60,10 @@ class MatchKind(str, Enum):
     DISORDERED_FAMILY = "disordered_family"
     """Same framework and site-species pattern as a disordered reference, but a
     different stoichiometry (e.g. another member of a solid-solution series)."""
+    SUBSTITUTIONAL_ORDERING = "substitutional_ordering"
+    """Ordering of chemically similar elements over the sites of a known
+    structure with fewer elements (e.g. GNoME's TbHo2Tm9Co4 = ordered
+    (Tb,Ho,Tm)3Co on the Ho3Co structure, Cheetham & Seshadri 2024)."""
     SIBLING_ORDERING = "sibling_ordering"
     """Different ordering of chemically similar elements on the same parent
     structure as an ordered reference with the same formula."""
@@ -318,6 +322,101 @@ class DisorderMatcher:
         if max_dev <= self.occupancy_tol + 1e-8 and comp_ok:
             return MatchResult(MatchKind.DISORDERED_REALIZATION, details=details)
         return MatchResult(MatchKind.DISORDERED_FAMILY, details=details)
+
+
+# --------------------------------------------------------------------------- substitutions
+
+
+def _pettifor_similar(a: Element, b: Element, max_dm: float, max_dr: float) -> bool:
+    try:
+        ma, mb = a.mendeleev_no, b.mendeleev_no
+        ra, rb = float(a.atomic_radius), float(b.atomic_radius)
+    except (TypeError, ValueError, AttributeError):
+        return False
+    if ma is None or mb is None or not ra or not rb:
+        return False
+    return abs(ma - mb) <= max_dm and abs(ra - rb) / ((ra + rb) / 2) <= max_dr + 1e-9
+
+
+def guess_ionic_radii(composition: Composition) -> dict[Element, tuple[int, float]]:
+    """``{element: (oxidation state, Shannon radius for CN VI)}`` for the most
+    probable charge-balanced oxidation states; empty for intermetallics or
+    when no guess is possible."""
+    from pymatgen.core import Species
+
+    try:
+        guesses = composition.oxi_state_guesses(max_sites=-1)
+    except Exception:
+        return {}
+    if not guesses:
+        return {}
+    out = {}
+    for el, ox in guesses[0].items():
+        if abs(ox - round(ox)) > 1e-6 or round(ox) == 0:
+            continue
+        sp = Species(el, round(ox))
+        try:
+            r = sp.get_shannon_radius(cn="VI")
+        except Exception:
+            r = sp.ionic_radius
+        if r:
+            out[Element(el)] = (round(ox), float(r))
+    return out
+
+
+def _similar_pair(a: Element, b: Element, ionic: dict, max_dm: float, max_dr: float, max_ionic_dr: float) -> bool:
+    if a in ionic and b in ionic:
+        # ionic compound: isovalent, and either size-matched or chemically close
+        (oa, ra), (ob, rb) = ionic[a], ionic[b]
+        if oa != ob:
+            return False
+        return abs(ra - rb) / ((ra + rb) / 2) <= max_ionic_dr + 1e-9 or _pettifor_similar(a, b, max_dm, max_dr)
+    return _pettifor_similar(a, b, max_dm, max_dr)
+
+
+def similarity_groups(
+    elements,
+    max_dm: float = 6,
+    max_dr: float = 0.2,
+    ionic: dict | None = None,
+    max_ionic_dr: float = 0.15,
+) -> list[list[Element]]:
+    """Partition elements into groups that can share crystallographic sites.
+
+    Two elements are *Pettifor-similar* if their Pettifor (Mendeleev) numbers
+    differ by at most ``max_dm`` and their atomic radii by at most ``max_dr``
+    (relative).  If ``ionic`` (from :func:`guess_ionic_radii`) assigns
+    oxidation states to both, they are similar when they are isovalent and
+    either their ionic radii are within ``max_ionic_dr`` (Goldschmidt's 15%
+    rule, e.g. Zr4+/Sn4+, Mg2+/Ni2+) or they are Pettifor-similar (e.g.
+    K+/Na+); otherwise Pettifor similarity decides (intermetallics).
+
+    Elements are visited in Pettifor order and join the first group in which
+    they are similar to *every* member (complete linkage, no chaining).  The
+    first element of a group is its representative.
+    """
+    ionic = ionic or {}
+    els = sorted(set(elements), key=lambda e: (e.mendeleev_no or 0, e.Z))
+    groups: list[list[Element]] = []
+    for el in els:
+        for g in groups:
+            if all(_similar_pair(el, o, ionic, max_dm, max_dr, max_ionic_dr) for o in g):
+                g.append(el)
+                break
+        else:
+            groups.append([el])
+    return groups
+
+
+def collapse_elements(structure: Structure, groups: list[list[Element]]) -> Structure:
+    """Replace every element of each group by the group's representative
+    (occupancies of merged elements on one site are summed)."""
+    mapping = {el: g[0] for g in groups for el in g[1:]}
+    present = {el: rep for el, rep in mapping.items() if el in structure.composition}
+    s = structure.copy()
+    if present:
+        s.replace_species(present)
+    return s
 
 
 # --------------------------------------------------------------------------- sibling orderings
