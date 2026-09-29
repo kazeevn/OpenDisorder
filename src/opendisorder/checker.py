@@ -8,7 +8,6 @@ import logging
 import signal
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from concurrent.futures import ProcessPoolExecutor
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 
@@ -128,6 +127,11 @@ class CheckOptions:
     at most 4 primitive cells; the extra 10% covers composition tolerance."""
     time_limit: float | None = 30.0
     """Seconds allowed per structure comparison (``None`` = no limit)."""
+    memory_limit_gb: float | None = 4.0
+    """Extra address space each worker of :meth:`NoveltyChecker.check_many` may
+    allocate (Unix only).  A comparison that exceeds it fails with
+    ``MemoryError`` and is recorded in ``NoveltyReport.errors`` instead of
+    getting the worker killed by the OOM killer.  ``None`` = no limit."""
     check_substitutions: bool = True
     """Layer 2c: compare with COD entries whose elements are a subset of the
     query's after merging chemically similar elements (see
@@ -410,17 +414,75 @@ class NoveltyChecker:
         groups: dict[str, list[int]] = defaultdict(list)
         for i, s in enumerate(cleaned):
             groups[chemsys(s)].append(i)
-        jobs = [(self.index.path, self._config(), [(i, cleaned[i]) for i in idx]) for idx in groups.values()]
+        # (db path, config, items, is_retry)
+        jobs = [(self.index.path, self._config(), [(i, cleaned[i]) for i in idx], False) for idx in groups.values()]
         # largest groups first for better load balancing
         jobs.sort(key=lambda j: -len(j[2]))
         reports: list[NoveltyReport | None] = [None] * len(cleaned)
         if processes > 1:
-            with ProcessPoolExecutor(processes) as pool:
-                results = pool.map(_check_group_job, jobs, chunksize=1)
-                self._collect(results, reports, len(jobs), progress)
+            self._run_pool(jobs, processes, reports, progress)
         else:
-            self._collect((self._check_group(items) for _, _, items in jobs), reports, len(jobs), progress)
+            self._collect((self._check_group(job[2]) for job in jobs), reports, len(jobs), progress)
         return reports  # type: ignore[return-value]
+
+    def _run_pool(self, jobs, processes: int, reports, progress: bool):
+        """Run group jobs, each in its own forked process, ``processes`` at a time.
+
+        A process that dies (e.g. killed by the OOM killer) only loses its own
+        job: a crashed group is retried one structure per process, and a
+        structure that crashes on its own gets an error report.
+        """
+        import multiprocessing as mp
+        from multiprocessing.connection import wait
+
+        ctx = mp.get_context("fork")
+        queue = list(jobs)
+        n_groups, done = len(jobs), 0
+        running: dict = {}
+        while queue or running:
+            while queue and len(running) < processes:
+                job = queue.pop(0)
+                reader, writer = ctx.Pipe(duplex=False)
+                proc = ctx.Process(target=_job_entry, args=(job, writer), daemon=True)
+                proc.start()
+                writer.close()
+                running[proc] = (job, reader)
+            ready = set(wait([r for _, r in running.values()] + [p.sentinel for p in running]))
+            for proc, (job, reader) in list(running.items()):
+                if reader not in ready and proc.sentinel not in ready:
+                    continue
+                result = None
+                try:
+                    if reader.poll():
+                        result = reader.recv()
+                except (EOFError, OSError):
+                    result = None
+                if result is None and proc.is_alive():
+                    continue  # sentinel not ready yet and nothing received
+                proc.join()
+                reader.close()
+                del running[proc]
+                items = job[2]
+                if result is not None:
+                    for i, rep in result:
+                        reports[i] = rep
+                    if len(items) > 1 or not job[3]:
+                        done += 1
+                elif len(items) > 1:
+                    logger.warning("worker died on a group of %d structures; retrying them one by one", len(items))
+                    queue[:0] = [(job[0], job[1], [item], True) for item in items]
+                else:
+                    i, s = items[0]
+                    logger.warning("worker died on structure %d (%s)", i, s.composition.reduced_formula)
+                    reports[i] = NoveltyReport(
+                        formula=s.composition.reduced_formula,
+                        chemsys=chemsys(s),
+                        errors=[f"worker process died (exit code {proc.exitcode}; out of memory?)"],
+                    )
+                    if not job[3]:
+                        done += 1
+                if progress and done and (done % 100 == 0 or done == n_groups):
+                    logger.info("checked %d/%d chemical systems", done, n_groups)
 
     @staticmethod
     def _collect(results, reports, n_jobs, progress):
@@ -449,11 +511,38 @@ class NoveltyChecker:
         return out
 
 
+def _limit_memory(extra_gb: float | None):
+    """Cap this process's address space at its current size plus ``extra_gb``."""
+    if not extra_gb:
+        return
+    try:
+        import resource
+
+        with open("/proc/self/statm") as fh:
+            current = int(fh.read().split()[0]) * resource.getpagesize()
+        limit = current + int(extra_gb * 1024**3)
+        _, hard = resource.getrlimit(resource.RLIMIT_AS)
+        if hard != resource.RLIM_INFINITY:
+            limit = min(limit, hard)
+        resource.setrlimit(resource.RLIMIT_AS, (limit, hard))
+    except (ImportError, OSError, ValueError):  # pragma: no cover - non-Linux
+        pass
+
+
+def _job_entry(job, conn):
+    """Child-process entry point: run one group job and send back the result."""
+    try:
+        conn.send(_check_group_job(job))
+    finally:
+        conn.close()
+
+
 def _check_group_job(job) -> list[tuple[int, NoveltyReport]]:
     import warnings
 
     warnings.filterwarnings("ignore")
-    db_path, config, items = job
+    db_path, config, items = job[:3]
+    _limit_memory(config["options"].get("memory_limit_gb"))
     index = CODIndex(db_path)
     try:
         checker = NoveltyChecker(

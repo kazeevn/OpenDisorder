@@ -119,3 +119,24 @@ def test_substitutional_ordering(index):
     assert rep.is_novel and not rep.is_novel_strict
     rep = NoveltyChecker(index, options=CheckOptions(check_substitutions=False)).check(q)
     assert rep.kind is MatchKind.NONE
+
+
+def test_check_many_survives_worker_crash(index, monkeypatch):
+    """A worker that dies (e.g. OOM-killed) only costs the offending structure."""
+    import os
+
+    import opendisorder.checker as checker_mod
+
+    original = checker_mod._check_group_job
+
+    def crashy(job):
+        if any(s.composition.reduced_formula == "CsXe" for _, s in job[2]):
+            os._exit(9)
+        return original(job)
+
+    monkeypatch.setattr(checker_mod, "_check_group_job", crashy)
+    nacl = Structure.from_spacegroup("Fm-3m", Lattice.cubic(5.5), ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    csxe = Structure.from_spacegroup("Pm-3m", Lattice.cubic(4.0), ["Cs", "Xe"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    reports = NoveltyChecker(index).check_many([nacl, csxe, nacl.copy()], processes=2)
+    assert reports[0].kind is MatchKind.PRISTINE and reports[2].kind is MatchKind.PRISTINE
+    assert reports[1].kind is MatchKind.NONE and "worker process died" in reports[1].errors[0]
