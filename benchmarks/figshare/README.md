@@ -70,36 +70,51 @@ The other grades are described in the top-level README.
 
 ## How much of known chemistry COD covers
 
-**About half of the MP-20 test split was never observed experimentally.** Materials Project
-(MP) marks 4,833 of its 9,046 entries as `theoretical`; another 284 are deprecated. The
-flags were fetched through the MP API on 2026-09-29, and `material_id.1` was converted to MP's
-new ids.
+CDVAE describes MP-20 as materials "originally from ICSD". Materials Project (MP), however, flags
+4,833 of the 9,046 test structures as `theoretical`, meaning no matching ICSD entry, and 284 as
+deprecated. The flags were fetched through the MP API on 2026-09-29. MP-20's old ids convert to
+MP's new ids as base-26 letters; the formulas agree for 299 of 300 sampled entries. The flags
+are the same in MP's 2022-10-28 release on AWS Open Data (4,830 of the 4,833), so this is not a
+recent change.
 
-| MP status | n | known % | any match % | no same-formula COD entry % |
+The disorder layers reconcile the two descriptions. Of the MP-20 test structures that MP
+flags as theoretical:
+
+- 523 are `disordered_realization`s of disordered COD entries;
+- 618 are `substitutional_ordering`s;
+- 206 are `disordered_family`;
+- 104 are `pristine` matches;
+- 100 carry MP's "Ordering of Disordered Crystal" tag.
+
+A large part of this "theoretical" half are MP's own **ordered approximants of compositionally
+disordered experimental phases**. An ordered cell matches no ICSD record, so MP flags it
+theoretical even though its source was an ICSD entry. This is exactly the situation this
+library is built to detect. MP-20-trained generative models learn these orderings and produce
+more of them.
+
+| MP flag | n | known % | any match % | no same-formula COD entry % |
 |---|---|---|---|---|
 | experimental (`theoretical=False`) | 3,929 | 47.1 | 49.1 | 47.1 |
 | theoretical | 4,833 | 13.0 | 30.4 | 65.1 |
 
-- **Experimental entries.** COD covers about half of them. Of the 1,999 experimental entries
-  without any match, 1,849 have no same-formula COD entry at all; for 1,824 of those the
-  formula appears nowhere in COD's metadata.
-- **Matcher misses are rare.** The remaining 150 are polymorph differences or distortions,
-  according to the audit sample.
-- **Where the gap is.** It is dominated by pnictides, carbides, borides and silicides (633),
-  intermetallics (566) and oxides (275). The list is in
-  `mp20_test_experimental_not_in_cod.csv`. These structures are typically only in ICSD or the
-  Pauling File. They are candidates for curation from the original publications and deposition
-  into COD.
+**COD covers about half of the experimental entries.** Of the 1,999 experimental entries
+without any match, 1,849 have no same-formula COD entry at all; for 1,824 the formula appears
+nowhere in COD's metadata. The remaining 150 are mostly different polymorphs, according to the
+audit sample.
 
-**Consequence.** "No match in COD" is a weak novelty signal for MP-20-trained models. Even for
-experimentally known materials, COD recognises only about 49%. Reasonable ways to report
+The gap is dominated by pnictides, carbides, borides and silicides (633), intermetallics (566)
+and oxides (275). The list is in `mp20_test_experimental_not_in_cod.csv`. These structures
+typically exist only in ICSD or the Pauling File. They are candidates for curation from the
+original publications and deposition into COD.
+
+**Consequence.** "No match in COD" is a weak novelty signal for MP-20-trained models: even for
+experimentally known materials, COD recognises only about half. Reasonable ways to report
 novelty:
 
-1. **Normalise by the control.** Report the known rate over the control's known rate. For
-   experimental MP-20 materials that control rate is about 47%.
-2. **Use COD together with the training set.** Match against COD plus the model's own
-   training data (MP-20 train), which is standard practice. COD then contributes what the
-   training set lacks: disorder-aware matching against experimental records.
+1. **Normalise by the control.** Report the known rate over the control's known rate.
+2. **Use COD together with the training set.** Match against COD plus the model's own training
+   data (MP-20 train), which is standard practice. COD then contributes what the training set
+   lacks: disorder-aware matching against experimental records.
 
 ## Audit of match precision
 
