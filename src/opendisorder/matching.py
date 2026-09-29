@@ -467,7 +467,9 @@ def disorder_similar_elements(structure: Structure, max_dx: float = 1.0, max_dr:
     for clique in cliques:
         total = sum(comp[el] for el in clique)
         mix = {el: comp[el] / total for el in clique}
-        for i, site in enumerate(s):
+        # read species from the original (ordered) structure: sites of an
+        # earlier clique are already mixed in ``s``
+        for i, site in enumerate(structure):
             if site.specie in clique:
                 s.replace(i, mix, coords=site.frac_coords)
     return s

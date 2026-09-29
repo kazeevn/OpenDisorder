@@ -162,3 +162,13 @@ def test_similarity_groups():
     assert {"Mg", "Ni"} in groups("Mg3NiO4")
     assert {"Na"} in groups("Na3Ca18Fe(PO4)14")  # heterovalent Na+/Ca2+ stay apart
     assert all(len(g) == 1 for g in similarity_groups([Element("Li"), Element("O")]))
+
+
+def test_disorder_similar_elements_two_cliques():
+    from opendisorder.matching import disorder_similar_elements
+
+    # Na/K and Cl/Br form two separate cliques
+    s = rocksalt_cell(["Na", "Na", "K", "K"], anions=("Cl", "Cl", "Br", "Br"), abc=(6.0, 6.0, 6.2))
+    d = disorder_similar_elements(s)
+    assert d is not None and not d.is_ordered
+    assert d.composition.almost_equals(s.composition)

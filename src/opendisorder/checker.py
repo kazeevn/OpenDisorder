@@ -363,7 +363,7 @@ class NoveltyChecker:
 
         # ---- layer 2b: different ordering of similar elements (same formula)
         if opts.check_siblings and unmatched_ordered:
-            dq = self.sibling.prepare(q)
+            dq = self._compare(report, self.sibling.prepare, q)
             if dq is not None:
                 for cid in unmatched_ordered:
                     if self._compare(report, self.sibling.fit, dq, q, refs[cid]):
