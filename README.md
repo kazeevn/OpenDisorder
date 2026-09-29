@@ -15,6 +15,13 @@ COD entry with partial occupancies.
 | `none` | no match | no |
 
 `NoveltyReport.is_novel` is `False` for `pristine` and `disordered_realization`.
+`NoveltyReport.is_novel_strict` is `True` only for `none`. The CLI prints `known`, `suspicious`
+or `novel`.
+
+A disordered query, such as a Rietveld refinement with mixed sites, is compared with disordered
+COD entries of the same chemical system. If the framework and site-species pattern match, the
+result is `pristine` when the composition agrees within tolerance and `disordered_family`
+otherwise.
 
 ## What counts as a disorder match
 
@@ -102,6 +109,27 @@ The building blocks can be used on their own:
 - `DisorderMatcher().match(ordered, disordered)`, which returns a `MatchResult` with a grade and
   details
 - `SiblingOrderingMatcher`
+
+## Case study: MatterGen's TaCr₂O₆
+
+MatterGen (Zeni et al., *Nature* 2025) generated and synthesized "new" TaCr₂O₆. Juelsholt
+(*Mater. Horiz.* 13, 5672, 2026) argued that it is the rutile-type solid solution Ta₁/₂Cr₁/₂O₂,
+known since 1971 (COD 9011856). Running `opendisorder check --exhaustive` on the structures
+involved gives:
+
+| structure | result | COD match |
+|---|---|---|
+| MatterGen TaCr₂O₆, generated (`data-release/cifs.zip`) | `disordered_family` | 9011856 (Ta₀.₅Cr₀.₅O₂, P4₂/mnm) |
+| MatterGen's Rietveld refinement, Ta₁/₃Cr₂/₃O₂ (disordered) | `disordered_family` | 2002668, 9011856 |
+| TaCrO₄ in MatterGen's training data: mp-753467, mp-756340, Alexandria agm003743920 | `disordered_realization` | 9011856, 2002578 |
+| mp-21512 Ta₂CrO₆ | `pristine` | 1001091 |
+| MatterGen Mn₅Fe₃O₈, which Juelsholt calls an ordered rock salt | `disordered_family` | 4344257 ((Mn₀.₅₆Fe₀.₄₄)O, Fm-3m) |
+| MatterGen Cr₂MoO₆ | `none` | not in COD |
+
+TaCr₂O₆ is reported as `disordered_family` rather than `disordered_realization`. It has the
+framework and the mixed Ta/Cr site of Ta₁/₂Cr₁/₂O₂, but the occupancies differ by 1/6. By
+Juelsholt's argument that still makes it not novel, and `NoveltyReport.is_novel_strict` follows
+that reading. `tests/data` holds these files as a regression test.
 
 ## Benchmark: generated crystals
 
